@@ -49,13 +49,12 @@
   /* Player (manual control) */
   #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
 
-  /* Bigger hearts, start lower & drift further left with a short rise */
+  /* Heart (36x36), floats straight up from exactly top edge of player */
   .heart{position:absolute;width:36px;height:36px;object-fit:contain;image-rendering:pixelated;
-    pointer-events:none; opacity:0}
+    pointer-events:none; opacity:0; z-index:5}
   @keyframes floatUp {
-    0%   { transform:translate(0px,   0px);  opacity:0 }
-    10%  { opacity:1 }
-    100% { transform:translate(-26px, -22px); opacity:0 }
+    0%   { transform:translateY(0);    opacity:1 }
+    100% { transform:translateY(-28px); opacity:0 }
   }
   .float{ animation: floatUp 1.8s ease-out forwards }
 
@@ -71,14 +70,14 @@
 </head>
 <body>
 <div class="wrap">
-  <header><h1>The Cozy Chamber</h1></header>
+  <header><h1>This Room Smells like Love and Cat Pee</h1></header>
 
   <div class="stage">
     <div id="scale" class="scaleBox">
       <div id="room" aria-label="Cat room — pet all three">
         <div class="ground" aria-hidden="true"></div>
 
-        <!-- Door (locked until all three are petted) -->
+        <!-- Door (auto-opens when reached after all petted) -->
         <div id="door" class="door" title="Exit to next room"></div>
 
         <!-- Cats (L→R: Minnie, Jiji, Artie) -->
@@ -86,7 +85,7 @@
         <img id="jiji"   class="cat" src="assets/img/jiji.png"   alt="Jiji the cat">
         <img id="artie"  class="cat" src="assets/img/artie.png"  alt="Artie the cat">
 
-        <!-- Player (manual movement) -->
+        <!-- Player -->
         <img id="player" src="assets/img/knight2.png" alt="Knight">
 
         <!-- Heart template (cloned per pet) -->
@@ -104,22 +103,23 @@
 
 <script>
 (function(){
-  const NEXT_URL = 'finale.html'; // change to your next page
+  const NEXT_URL = 'riddle.html'; // go here automatically when you reach the door (after all cats are petted)
 
-  // Scale 960×540 to fit viewport
+  // --- Scaling ---
   const scaleBox = document.getElementById('scale');
+  const W=960, H=540;
   function fit(){
-    const W=960,H=540;
     const maxW = Math.min(window.innerWidth*0.96, 1200);
     const maxH = window.innerHeight - 160;
-    const s = Math.min(maxW/W, maxH/H);
-    scaleBox.style.transform = `scale(${s})`;
+    scaleBox.style.transform = `scale(${Math.min(maxW/W, maxH/H)})`;
   }
   window.addEventListener('resize', fit); fit();
 
+  // --- DOM & State ---
   const room = document.getElementById('room');
   const door = document.getElementById('door');
   const logEl = document.getElementById('log');
+  const playerEl = document.getElementById('player');
 
   const cats = [
     { id:'minnie', msg:'Angel baby Minnie loves you so so much.' },
@@ -128,57 +128,63 @@
   ];
   const petted = new Set();
 
-  // Player (manual control like the encounter page)
-  const groundY = 540 - 112;
-  const playerEl = document.getElementById('player');
+  // --- Player (manual movement) ---
+  const groundY = H - 112;
   const player = { x: 36, y: groundY - 56, w:56, h:56 };
   place(playerEl, player);
 
-  // Input
   const keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
   addEventListener('keydown', e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); } }, {passive:false});
   addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); } }, {passive:false});
-
   const speed = 2.4;
   function movePlayer(dx,dy){
-    player.x = Math.max(0, Math.min(960 - player.w, player.x + dx));
-    player.y = Math.max(0, Math.min(540 - player.h, player.y + dy));
+    player.x = Math.max(0, Math.min(W - player.w, player.x + dx));
+    player.y = Math.max(0, Math.min(H - player.h, player.y + dy));
     place(playerEl, player);
   }
-
   function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
 
-  // Append persistent message line
+  // --- Geometry helpers (explicit door rect so we don't parse CSS) ---
+  function rect(x,y,w,h){ return {x,y,w,h}; }
+  function intersects(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+  const DOOR_W=40, DOOR_H=84, DOOR_RIGHT=26, DOOR_BOTTOM=112;
+  function doorRect(){
+    const left = W - DOOR_RIGHT - DOOR_W;
+    const top  = H - DOOR_BOTTOM - DOOR_H;
+    return rect(left, top, DOOR_W, DOOR_H);
+  }
+
+  // --- UI helpers ---
   function appendMsg(text){
     const line = document.createElement('div');
     line.textContent = '• ' + text;
     logEl.appendChild(line);
   }
 
-  // Bigger heart, start lower & further left over a given cat element
-  function popHeart(catEl){
+  // Heart directly above player's head (flush to the top edge, centered)
+  function popHeartOverPlayer(){
     const roomRect = room.getBoundingClientRect();
-    const catRect  = catEl.getBoundingClientRect();
+    const pRect    = playerEl.getBoundingClientRect();
+
+    const HEART_W = 36, HEART_H = 36;
+    const left = (pRect.left - roomRect.left) + (pRect.width  - HEART_W)/2;
+    const top  = (pRect.top  - roomRect.top)  - HEART_H; // no extra spacing
+
     const heart = document.getElementById('heart-tmpl').cloneNode(true);
     heart.id = '';
-
-    // Lower and further left than before
-    const left = (catRect.left - roomRect.left) + catRect.width/2 - 18;   // shift ~18px left
-    const bottom = (roomRect.bottom - catRect.top) - 12;                  // start lower (closer to cat)
     heart.style.left = left + 'px';
-    heart.style.bottom = bottom + 'px';
+    heart.style.top  = top  + 'px';
 
     room.appendChild(heart);
     requestAnimationFrame(()=> heart.classList.add('float'));
     setTimeout(()=> heart.remove(), 2000);
   }
 
-  // Pet handler (click cats in any order)
+  // --- Petting ---
   function petCat(cat){
     if(petted.has(cat.id)) return;
     petted.add(cat.id);
-    const el = document.getElementById(cat.id);
-    popHeart(el);
+    popHeartOverPlayer();
     appendMsg(cat.msg);
 
     if(petted.size === cats.length){
@@ -188,16 +194,13 @@
                    {duration:300, direction:'alternate', iterations:2});
     }
   }
-
   cats.forEach(c=>{
     document.getElementById(c.id).addEventListener('click', ()=> petCat(c));
   });
 
-  // Door click
+  // Door click (still shakes if early; auto-advance handled in loop)
   door.addEventListener('click', ()=>{
-    if(petted.size === cats.length){
-      window.location.href = NEXT_URL;
-    }else{
+    if(petted.size !== cats.length){
       door.animate(
         [{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],
         {duration:220, iterations:1}
@@ -205,14 +208,20 @@
     }
   });
 
-  // Game loop for player control
+  // --- Game loop: player control + auto-advance when touching door ---
   function tick(){
     let dx=0, dy=0;
     if(keys.w || keys.ArrowUp)    dy -= speed;
     if(keys.s || keys.ArrowDown)  dy += speed;
     if(keys.a || keys.ArrowLeft)  dx -= speed;
     if(keys.d || keys.ArrowRight) dx += speed;
+
     if(dx || dy) movePlayer(dx,dy);
+
+    if(petted.size === cats.length && intersects(player, doorRect())){
+      window.location.href = NEXT_URL;
+      return;
+    }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
