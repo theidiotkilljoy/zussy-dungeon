@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Room of Love and Piss</title>
+<link rel="preload" as="audio" href="assets/audio/bff.mp3" type="audio/mpeg">
 <style>
   :root{
     --bg:#0a0b10; --text:#e8ecf1; --floor:#0f1320;
@@ -101,6 +102,9 @@
   </div>
 </div>
 
+<!-- Background music -->
+<audio id="bgm" src="assets/audio/bff.mp3" loop preload="auto"></audio>
+
 <script>
 (function(){
   const NEXT_URL = 'riddle.html'; // next page
@@ -116,6 +120,15 @@
     scaleBox.style.transform = `scale(${SCALE})`;
   }
   window.addEventListener('resize', fit); fit();
+
+  // --- BGM (starts on first user gesture) ---
+  const bgm = document.getElementById('bgm');
+  if (bgm){
+    bgm.volume = 0.5;
+    const boot = () => { bgm.play().catch(()=>{}); window.removeEventListener('pointerdown', boot); window.removeEventListener('keydown', boot); };
+    window.addEventListener('pointerdown', boot, {once:true});
+    window.addEventListener('keydown', boot, {once:true});
+  }
 
   // --- DOM & State ---
   const room = document.getElementById('room');
