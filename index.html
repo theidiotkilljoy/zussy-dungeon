@@ -1,13 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Welcome, Lord Zussy</title>
 <style>
   :root{
     --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --text:#e8ecf1;
-    --seal:#A60000; --seal-dark:#5b0000; --seal-mid:#7d0000; --accent:#7cffb8;
+    --parch-1:#efe3c5; --parch-2:#dbcba1; --parch-3:#c9b88a; --parch-ink:#2a2418;
+    --seal:#A60000; --seal-mid:#7d0000; --seal-dark:#4d0000; --accent:#7cffb8;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
@@ -16,144 +17,113 @@
       radial-gradient(1200px 800px at 50% 0%, #121622 0%, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
     color:var(--text);
-    font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    font:16px/1.4 ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
     overflow:hidden;
   }
-  .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:6px;}
+  .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
   header{display:grid;place-items:center;padding-top:10px}
   h1{margin:0;font-weight:900;letter-spacing:.3px;text-transform:lowercase;font-size:clamp(28px,5vw,48px)}
   main{display:grid;place-items:start center}
+
   .panel{
     background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-    border:1px solid var(--edge); border-radius:16px; padding:16px 18px;
+    border:1px solid var(--edge); border-radius:16px; padding:18px 18px 22px;
     box-shadow:inset 0 0 40px rgba(0,0,0,.35), 0 24px 80px rgba(0,0,0,.55);
-    width:min(94vw,900px); text-align:center;
+    width:min(96vw,960px); text-align:center;
   }
-  .subtitle{opacity:.95;margin:2px 0 12px;font-size:clamp(14px,2.4vw,18px)}
-  /* Scroll look */
-  .scroll{
-    position:relative; display:inline-block; padding:24px 28px 34px; margin:0 auto 6px;
-    background:
-      radial-gradient(180px 24px at 50% 0, rgba(0,0,0,.25), transparent 60%),
-      linear-gradient(#e9dfc5, #d9caa4 60%, #cbb98e);
-    color:#1b1a16; border-radius:8px; border:1px solid #a08c5a;
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.35),
-      inset 0 -10px 30px rgba(0,0,0,.15),
-      0 16px 40px rgba(0,0,0,.35);
+
+  /* Scene container */
+  .scene{display:grid;place-items:center;gap:16px; perspective:1200px}
+
+  /* Envelope */
+  .envelope{
+    position:relative;
     width:min(88vw,720px);
-  }
-  .scroll:before, .scroll:after{
-    content:""; position:absolute; left:0; right:0; height:16px;
-    background:radial-gradient(50% 100% at 50% 0, rgba(0,0,0,.35), transparent 70%);
-    filter:blur(3px);
-  }
-  .scroll:before{ top:-8px } .scroll:after{ bottom:-10px }
-
-  /* Wax seal “die” */
-  .seal-wrap{display:grid;place-items:center; gap:8px; margin-top:8px}
-  .seal{
-    position:relative; width:min(64vw,360px); aspect-ratio:1/1; border-radius:50%;
+    aspect-ratio: 16/9;
+    border-radius:10px;
     background:
-      radial-gradient(80% 80% at 30% 30%, #ff5d5d 0%, #c40000 35%, var(--seal) 60%, var(--seal-mid) 85%, var(--seal-dark) 100%);
+      radial-gradient(200% 120% at 50% -40%, rgba(0,0,0,.25), transparent 50%),
+      linear-gradient(180deg,#f4e9cf, #e5d6b0 60%, #d3c195);
+    border:1px solid #b49c6e;
     box-shadow:
-      inset 0 6px 14px rgba(255,255,255,.12),
-      inset 0 -18px 26px rgba(0,0,0,.35),
-      0 20px 40px rgba(0,0,0,.55);
-    border:2px solid rgba(0,0,0,.35);
-    cursor:pointer; user-select:none;
-    transition:transform .18s ease, filter .18s ease;
-    display:grid; place-items:center;
+      inset 0 8px 18px rgba(255,255,255,.25),
+      inset 0 -16px 30px rgba(0,0,0,.15),
+      0 18px 50px rgba(0,0,0,.45);
+    overflow:hidden;
   }
-  .seal:hover{ transform:translateY(-1px) scale(1.01) }
-  .seal:active{ transform:translateY(1px) scale(.995) }
-  .seal::after{ /* subtle rim highlight */
-    content:""; position:absolute; inset:8px; border-radius:50%;
-    box-shadow:inset 0 0 0 2px rgba(255,255,255,.08), inset 0 0 28px rgba(0,0,0,.25);
+  /* Bottom triangles (envelope body folds) */
+  .envelope:before,.envelope:after{
+    content:""; position:absolute; inset:auto 0 0; height:52%;
+    background:linear-gradient(180deg,#e6d6b2,#d1bf93);
+    clip-path:polygon(0 0, 100% 0, 50% 100%);
+    filter:drop-shadow(0 -2px 2px rgba(0,0,0,.12));
   }
-  /* Impression pattern like a d20 glyph ring (pure CSS) */
-  .rim{ position:absolute; inset:12%; border-radius:50%;
+  .envelope:after{opacity:.6; transform:translateY(2px) scaleX(.98)}
+
+  /* Flap (opens up) */
+  .flap{
+    position:absolute; inset:0 0 46% 0;
+    background:linear-gradient(180deg,#f3e7cb, #e9dbb8 58%, #d5c298);
+    clip-path:polygon(0 0, 100% 0, 50% 100%, 0 0);
+    transform-origin:50% 0%;
+    transform:rotateX(0deg);
+    box-shadow:inset 0 -24px 30px rgba(0,0,0,.12);
+    transition:transform 1s cubic-bezier(.2,.7,.2,1);
+    backface-visibility:hidden;
+  }
+
+  /* Wax seal (click target) */
+  .seal{
+    --size: clamp(54px, 9vw, 82px);
+    position:absolute; left:50%; top:52%;
+    width:var(--size); height:var(--size); margin:-calc(var(--size)/2);
+    border-radius:50%;
     background:
-      conic-gradient(from 0deg, rgba(0,0,0,.22) 0 2deg, transparent 2deg 18deg) center/28px 28px repeat;
-    mask-image: radial-gradient(circle at center, transparent 0 58%, black 59% 100%);
-    opacity:.55; pointer-events:none;
+      radial-gradient(80% 80% at 30% 30%, #ff6d6d 0%, #d10000 35%, var(--seal) 60%, var(--seal-mid) 85%, var(--seal-dark) 100%);
+    border:2px solid rgba(0,0,0,.35);
+    box-shadow:
+      inset 0 6px 14px rgba(255,255,255,.14),
+      inset 0 -18px 28px rgba(0,0,0,.35),
+      0 10px 22px rgba(0,0,0,.45);
+    display:grid; place-items:center;
+    cursor:pointer; user-select:none;
+    transition:transform .18s ease, filter .18s ease, opacity .25s ease;
   }
-  /* Number (hidden until reveal) */
-  .num{
-    font: 900 clamp(80px, 22vw, 180px)/1 system-ui, Segoe UI, Roboto, Arial;
-    color:#fff; text-shadow: 0 4px 0 rgba(0,0,0,.35), 0 0 30px rgba(0,0,0,.35);
-    transform:translateY(4px) scale(.94); opacity:0; transition:opacity .3s ease, transform .35s ease;
-    pointer-events:none;
+  .seal:hover{ transform:translateY(-1px) scale(1.02) }
+  .seal:active{ transform:translateY(1px) scale(.985) }
+  .seal::after{
+    content:"Z"; color:#fff; font:900 clamp(22px,3.3vw,30px)/1.1 system-ui, sans-serif;
+    text-shadow:0 3px 0 rgba(0,0,0,.35), 0 0 22px rgba(0,0,0,.25);
   }
 
-  /* Click animation: spin & thump */
-  @keyframes rollSeq{
-    0%{ transform:rotate(0) scale(1) }
-    20%{ transform:rotate(180deg) scale(1.02) }
-    55%{ transform:rotate(520deg) scale(.98) }
-    80%{ transform:rotate(700deg) scale(1.01) }
-    100%{ transform:rotate(720deg) scale(1) }
+  /* Scroll (hidden behind envelope, then rises & unfurls) */
+  .scroll{
+    position:relative;
+    width:min(84vw,680px);
+    margin-inline:auto;
+    max-height:0;
+    overflow:hidden;
+    transition:max-height 1.2s cubic-bezier(.2,.7,.2,1), transform .6s ease, opacity .6s ease;
+    transform:translateY(-8px);
+    opacity:0;
   }
-  .rolling{ animation: rollSeq 1.3s cubic-bezier(.2,.7,.2,1); }
-  .seal.revealed .num{ opacity:1; transform:translateY(0) scale(1) }
-
-  footer{display:grid;place-items:center;padding:0 0 18px}
-  .enter{
-    display:none; background:linear-gradient(180deg, #1a2030, #0f1320);
-    border:1px solid #2a334a; color:var(--text); font-weight:700; text-transform:uppercase;
-    letter-spacing:.08em; padding:12px 18px; border-radius:12px; cursor:pointer;
-    box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 20px rgba(124,255,184,.12); text-decoration:none;
+  .scroll-inner{
+    position:relative;
+    color:var(--parch-ink);
+    padding:28px 28px 34px;
+    background:
+      radial-gradient(200% 90% at 50% -20%, rgba(0,0,0,.18), transparent 50%),
+      linear-gradient(180deg,var(--parch-1), var(--parch-2) 55%, var(--parch-3));
+    border:1px solid #a58b5a;
+    border-radius:10px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.35),
+      inset 0 -14px 35px rgba(0,0,0,.15),
+      0 18px 50px rgba(0,0,0,.35);
   }
-  .enter.show{ display:inline-block; animation:pop .35s ease }
-  @keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
-</style>
-</head>
-<body>
-  <div class="wrap">
-    <header><h1>Welcome, Lord Zussy</h1></header>
-
-    <main>
-      <div class="panel">
-        <div class="subtitle">Roll for initiative!</div>
-
-        <div class="scroll" aria-label="Ancient scroll with a wax seal. Click the seal to roll.">
-          <div class="seal-wrap">
-            <div id="seal" class="seal" role="button" aria-pressed="false" aria-live="polite" tabindex="0">
-              <div class="rim" aria-hidden="true"></div>
-              <div id="num" class="num">32</div>
-            </div>
-            <div class="hint" style="font-size:12px;opacity:.75;color:#cfd6df">click the seal</div>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <footer>
-      <a id="enterBtn" class="enter" href="dungeon.html">enter the dungeon</a>
-    </footer>
-  </div>
-
-<script>
-  const seal = document.getElementById('seal');
-  const num  = document.getElementById('num');
-  const enterBtn = document.getElementById('enterBtn');
-  let rolled = false;
-
-  function go(){
-    if(rolled) return;
-    rolled = true;
-    seal.setAttribute('aria-pressed','true');
-    seal.classList.add('rolling');
-
-    // “Deterministic” — no RNG: always 32
-    // After the spin, reveal the number and show the button
-    setTimeout(()=>{
-      seal.classList.add('revealed');
-      enterBtn.classList.add('show');
-    }, 1300); // matches keyframe duration
-  }
-  seal.addEventListener('click', go);
-  seal.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); go(); }});
-</script>
-</body>
-</html>
+  /* Rollers */
+  .scroll-inner:before,.scroll-inner:after{
+    content:""; position:absolute; left:0; right:0; height:16px;
+    background:
+      linear-gradient(90deg,#7d5a2f,#b4874b 45%,#d09b5a, #b4874b 55%, #7d5a2f);
+    box-shadow:inset 0 0 6px r
