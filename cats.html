@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Room of Very Good Cats</title>
+<style>
+  :root{
+    --bg:#0a0b10; --text:#e8ecf1; --floor:#0f1320;
+    --stone:#1b1f2b; --stone2:#242b3a; --ok:#7cffb8; --warn:#ffb86b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:
+      radial-gradient(1200px 800px at 50% 0, #121622 0, #0a0b10 70%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
+    color:var(--text);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  }
+
+  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
+  header{display:grid;place-items:center;padding-top:8px}
+  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
+
+  .stage{display:grid;place-items:center;padding:8px 12px}
+  .scaleBox{transform-origin:top center}
+
+  /* Playfield */
+  #room{position:relative;width:960px;height:540px;background:var(--floor);
+    border:1px solid #222a3b;border-radius:14px;overflow:hidden}
+  #room::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));
+    mix-blend-mode:multiply;opacity:.45}
+  .ground{position:absolute;left:0;right:0;bottom:112px;height:4px;
+    background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030);opacity:.35}
+
+  /* Door (right side) */
+  .door{position:absolute;width:40px;height:84px;right:26px;bottom:112px;
+    border:2px solid #313a52;border-radius:8px;background:#131824;cursor:pointer}
+  .door::after{content:"";position:absolute;width:6px;height:6px;right:8px;top:50%;
+    transform:translateY(-50%);background:#9aa3b2;border-radius:50%}
+
+  /* Cats row */
+  .cat{position:absolute;width:96px;height:96px;object-fit:contain;image-rendering:pixelated;cursor:pointer}
+  #minnie{left:240px; bottom:112px}
+  #jiji  {left:432px; bottom:112px}
+  #artie {left:624px; bottom:112px}
+
+  /* Floating heart animation */
+  .heart{position:absolute;width:26px;height:26px;object-fit:contain;image-rendering:pixelated;
+    left:50%; transform:translateX(-50%); bottom:86px; pointer-events:none; opacity:0}
+  @keyframes floatUp {
+    0% { transform:translate(-50%, 0); opacity:0 }
+    10%{ opacity:1 }
+    100%{ transform:translate(-50%, -48px); opacity:0 }
+  }
+  .float{ animation: floatUp 1.8s ease-out forwards }
+
+  /* HUD + log */
+  .hud{margin-top:10px;opacity:.95;font-size:14px;text-align:center}
+  .pill{display:inline-block;padding:6px 10px;border:1px solid #313a52;border-radius:999px;margin:0 4px}
+  .log{
+    width:min(960px,96vw); margin:10px auto 18px; padding:10px 12px;
+    border:1px solid #3a435c; border-radius:10px; background:#0b0f1a; opacity:.95; text-align:left;
+    font-size:14px; line-height:1.45; white-space:pre-line;
+  }
+  .ok{color:var(--ok)} .warn{color:var(--warn)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>The Cozy Chamber</h1></header>
+
+  <div class="stage">
+    <div id="scale" class="scaleBox">
+      <div id="room" aria-label="Cat room — pet all three">
+        <div class="ground" aria-hidden="true"></div>
+
+        <!-- Door (locked until all three are petted) -->
+        <div id="door" class="door" title="Exit to next room"></div>
+
+        <!-- Cats (L→R: Minnie, Jiji, Artie) -->
+        <img id="minnie" class="cat" src="assets/img/minnie.png" alt="Minnie the cat">
+        <img id="jiji"   class="cat" src="assets/img/jiji.png"   alt="Jiji the cat">
+        <img id="artie"  class="cat" src="assets/img/artie.png"  alt="Artie the cat">
+
+        <!-- One reusable heart element per cat (spawned on demand) -->
+        <img id="heart-tmpl" class="heart" src="assets/img/heart.png" alt="" aria-hidden="true">
+      </div>
+    </div>
+
+    <div class="hud">
+      <span class="pill">You must pet all three to pass.</span>
+    </div>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const NEXT_URL = 'finale.html'; // change this to your next page
+
+  const scaleBox = document.getElementById('scale');
+  const room = document.getElementById('room');
+  const door = document.getElementById('door');
+  const logEl = document.getElementById('log');
+  const cats = [
+    { id:'minnie', msg:'Angel baby Minnie loves you so so much.' },
+    { id:'jiji',   msg:'Jiji is grateful for your special nap time cuddles.' },
+    { id:'artie',  msg:'Artie wants you to have the best birthday ever and forgives all the torture you\'ve inflicted on him.' }
+  ];
+  const petted = new Set();
+
+  // Scale the 960×540 playfield to fit viewport
+  function fit(){
+    const W=960,H=540;
+    const maxW = Math.min(window.innerWidth*0.96, 1200);
+    const maxH = window.innerHeight - 160;
+    const s = Math.min(maxW/W, maxH/H);
+    scaleBox.style.transform = `scale(${s})`;
+  }
+  window.addEventListener('resize', fit); fit();
+
+  // Append a message (persistent until leaving room)
+  function appendMsg(text){
+    const line = document.createElement('div');
+    line.textContent = '• ' + text;
+    logEl.appendChild(line);
+  }
+
+  // Spawn a floating heart above a given cat element
+  function popHeart(catEl){
+    const heart = document.getElementById('heart-tmpl').cloneNode(true);
+    heart.id = ''; // make it unique
+    // position the heart centered over the cat
+    const catRect = catEl.getBoundingClientRect();
+    const roomRect = room.getBoundingClientRect();
+    const left = (catRect.left - roomRect.left) + catRect.width/2;
+    const bottom = (roomRect.bottom - catRect.top) + 6; // a bit above cat
+    heart.style.left = left + 'px';
+    heart.style.bottom = bottom + 'px';
+    room.appendChild(heart);
+    // trigger animation
+    requestAnimationFrame(()=> heart.classList.add('float'));
+    setTimeout(()=> heart.remove(), 2000);
+  }
+
+  // Pet handler
+  function petCat(cat){
+    const el = document.getElementById(cat.id);
+    if(petted.has(cat.id)) return; // only once each
+    petted.add(cat.id);
+    popHeart(el);
+    appendMsg(cat.msg);
+    // If all petted, unlock door (visual cue: pulse border briefly)
+    if(petted.size === cats.length){
+      door.style.boxShadow = '0 0 0 0 rgba(124,255,184,.6)';
+      door.animate([{boxShadow:'0 0 0 0 rgba(124,255,184,.0)'},{boxShadow:'0 0 0 8px rgba(124,255,184,.35)'}],
+                   {duration:300, direction:'alternate', iterations:2});
+    }
+  }
+
+  cats.forEach(c=>{
+    const el = document.getElementById(c.id);
+    el.addEventListener('click', ()=> petCat(c));
+  });
+
+  // Door click
+  door.addEventListener('click', ()=>{
+    if(petted.size === cats.length){
+      window.location.href = NEXT_URL;
+    }else{
+      // gentle nudge: shake the door a bit
+      door.animate(
+        [{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],
+        {duration:220, iterations:1}
+      );
+    }
+  });
+
+  // Initial instruction line
+  appendMsg('You must pet all three to pass.');
+})();
+</script>
+</body>
+</html>
