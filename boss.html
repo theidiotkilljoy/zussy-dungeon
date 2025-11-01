@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Boss — The Dark Elixir</title>
+<style>
+  :root{
+    --text:#e8ecf1; --bg:#0a0b10; --floor:#0f1320;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:
+      radial-gradient(1200px 800px at 50% 0, #121622 0, #0a0b10 70%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
+    color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    overflow:hidden;
+  }
+
+  /* Title */
+  header{display:grid;place-items:center;padding:10px 0 2px}
+  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
+
+  /* Stage container that scales to fit viewport */
+  .stage{display:grid;place-items:center;padding:6px 12px}
+  .scaleBox{transform-origin:top center}
+
+  /* Fixed logical viewport */
+  #viewport{position:relative;width:960px;height:540px;background:var(--floor);
+    border:1px solid #222a3b;border-radius:14px;overflow:hidden}
+  #viewport::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));mix-blend-mode:multiply;opacity:.45}
+
+  /* World has translate; wrapper scales for cutscene zoom */
+  #worldScale{position:absolute;inset:0;transform-origin:top left;transition:transform .6s ease}
+  #world{position:absolute;inset:0;transform-origin:top left;transition:transform .6s ease}
+
+  /* Ground line for a bit of depth */
+  .ground{position:absolute;left:0;right:0;bottom:112px;height:4px;
+    background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030);opacity:.35}
+
+  /* Sprites */
+  #player{position:absolute;width:56px;height:56px;image-rendering:pixelated}
+  #npc{position:absolute;width:120px;height:120px;image-rendering:pixelated}
+
+  /* Bottom overlay for text prompts */
+  #overlay{
+    position:absolute;left:0;right:0;bottom:0;padding:18px 20px 22px;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.35) 40%, rgba(0,0,0,.65));
+    font-weight:900; letter-spacing:.2px; text-shadow:0 2px 8px rgba(0,0,0,.65), 0 0 24px rgba(0,0,0,.45);
+    font-size:clamp(22px,3.2vw,40px);
+    cursor:pointer; user-select:none;
+    display:none;  /* shown during cutscene */
+  }
+  #sub{display:block;opacity:.9;font-weight:600;font-size:.68em;margin-top:6px}
+
+  /* Coffee item (shown after 2nd line) */
+  #coffee{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(1);
+    image-rendering:pixelated; display:none; z-index:6;
+  }
+  @keyframes coffeeGrow { from{ transform:translate(-50%,-50%) scale(1) } to{ transform:translate(-50%,-50%) scale(16) } }
+  .brew{ animation: coffeeGrow .7s ease forwards }
+
+  /* Flash effect on transform */
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  @keyframes flashBang { 0%{opacity:0} 10%{opacity:1} 100%{opacity:0} }
+  .flash{ animation: flashBang .22s ease }
+
+</style>
+</head>
+<body>
+  <header><h1>The Dark Elixir</h1></header>
+
+  <div class="stage">
+    <div id="scale" class="scaleBox">
+      <div id="viewport" aria-label="Boss chamber">
+        <!-- zoom stack -->
+        <div id="worldScale">
+          <div id="world">
+            <div class="ground" aria-hidden="true"></div>
+
+            <!-- Player -->
+            <img id="player" src="assets/img/knight2.png" alt="Knight">
+
+            <!-- Boss/NPC (starts grumpy) -->
+            <img id="npc" src="assets/img/grumpymaia.png" alt="A tired, grumpy heroine">
+          </div>
+        </div>
+
+        <!-- Cutscene UI -->
+        <img id="coffee" src="assets/img/coffee.png" alt="Cup of coffee">
+        <div id="flash"></div>
+        <div id="overlay">
+          <span id="line"></span>
+          <span id="sub">(click)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // ----- Constants -----
+  const W=960, H=540;
+  const GROUND=112;
+  const PLAYER_W=56, PLAYER_H=56;
+  const NPC_W=120, NPC_H=120;
+  const START = { x:36, y: H-GROUND-PLAYER_H };
+  const NPC_POS = { x:560, y: H-GROUND-NPC_H };
+  const NEXT_URL = 'finale.html';
+
+  // ----- DOM -----
+  const scaleBox = document.getElementById('scale');
+  const viewport = document.getElementById('viewport');
+  const world    = document.getElementById('world');
+  const worldScale = document.getElementById('worldScale');
+  const playerEl = document.getElementById('player');
+  const npcEl    = document.getElementById('npc');
+  const overlay  = document.getElementById('overlay');
+  const lineEl   = document.getElementById('line');
+  const subEl    = document.getElementById('sub');
+  const coffeeEl = document.getElementById('coffee');
+  const flashEl  = document.getElementById('flash');
+
+  // ----- Layout / scale to viewport -----
+  function fit(){
+    const maxW = Math.min(window.innerWidth*0.96, 1200);
+    const maxH = window.innerHeight - 120;
+    const s = Math.min(maxW/W, maxH/H);
+    scaleBox.style.transform = `scale(${s})`;
+  }
+  window.addEventListener('resize', fit); fit();
+
+  // ----- Entities -----
+  const player = { x: START.x, y: START.y, w:PLAYER_W, h:PLAYER_H };
+  const npc    = { x: NPC_POS.x, y: NPC_POS.y, w:NPC_W, h:NPC_H };
+
+  function placeSprite(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
+  placeSprite(playerEl, player);
+  placeSprite(npcEl, npc);
+
+  // ----- Movement -----
+  const keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
+  addEventListener('keydown', e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); }},{passive:false});
+  addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); }},{passive:false});
+  let controlsEnabled = true;
+  const speed = 2.8;
+
+  function clamp(e){
+    e.x = Math.max(0, Math.min(W-e.w, e.x));
+    e.y = Math.max(0, Math.min(H-e.h, e.y));
+  }
+  function intersects(a,b){
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  // ----- Cutscene text -----
+  const preCoffeeLines = [
+    'This foul wench needs help!',
+    'Quick, give her the magic dark elixir!'
+  ];
+  const postCoffeeLines = [
+    "Lord Zussy, you've saved me!",
+    'I knew you would understand my secret message!',
+    'Now, we have a big celebration ahead of us...',
+    'Follow me!'
+  ];
+  let stage = 'explore';    // explore -> zoom -> preCoffee -> waitCoffee -> postCoffee -> done
+  let idx = 0;
+
+  function centerOnNPCAndZoom(){
+    // Center world on NPC
+    const dx = (W/2) - (npc.x + npc.w/2);
+    const dy = (H/2) - (npc.y + npc.h/2);
+    world.style.transform = `translate(${dx}px, ${dy}px)`;
+    worldScale.style.transform = `scale(2.2)`;
+  }
+
+  function showOverlay(text){
+    overlay.style.display = 'block';
+    lineEl.textContent = text;
+  }
+
+  // Coffee size ~ quarter of NPC height
+  function sizeCoffee(){
+    const size = Math.round(NPC_H * 0.25);
+    coffeeEl.style.width = size + 'px';
+    coffeeEl.style.height = 'auto';
+  }
+
+  // Flash and transform to happy
+  function transformMaia(){
+    flashEl.classList.add('flash');
+    npcEl.src = 'assets/img/happymaia.png';
+    setTimeout(()=> flashEl.classList.remove('flash'), 240);
+  }
+
+  overlay.addEventListener('click', ()=>{
+    if(stage === 'preCoffee'){
+      idx++;
+      if(idx < preCoffeeLines.length){
+        showOverlay(preCoffeeLines[idx]);
+        if(idx === preCoffeeLines.length-1){
+          // After showing "Quick, give her the magic dark elixir!" show coffee
+          sizeCoffee();
+          coffeeEl.style.display = 'block';
+          stage = 'waitCoffee';
+          subEl.textContent = '(click the elixir)';
+        }
+      }
+      return;
+    }
+    if(stage === 'postCoffee'){
+      idx++;
+      if(idx < postCoffeeLines.length){
+        showOverlay(postCoffeeLines[idx]);
+      }else{
+        // Next click opens finale in a new tab
+        stage = 'done';
+        window.open('finale.html', '_blank');
+      }
+    }
+  });
+
+  coffeeEl.addEventListener('click', ()=>{
+    if(stage !== 'waitCoffee') return;
+    // Grow animation, then flash + swap sprite
+    coffeeEl.classList.add('brew');
+    coffeeEl.addEventListener('animationend', ()=>{
+      coffeeEl.style.display = 'none';
+      coffeeEl.classList.remove('brew');
+      transformMaia();
+      // Begin happy dialogue
+      stage = 'postCoffee';
+      idx = 0;
+      subEl.textContent = '(click)';
+      showOverlay(postCoffeeLines[idx]);
+    }, {once:true});
+  });
+
+  // ----- Main loop -----
+  function tick(){
+    if(controlsEnabled){
+      let dx=0, dy=0;
+      if(keys.w || keys.ArrowUp) dy -= speed;
+      if(keys.s || keys.ArrowDown) dy += speed;
+      if(keys.a || keys.ArrowLeft) dx -= speed;
+      if(keys.d || keys.ArrowRight) dx += speed;
+
+      if(dx || dy){
+        player.x += dx; player.y += dy; clamp(player);
+        placeSprite(playerEl, player);
+      }
+
+      // Approach trigger
+      if(stage === 'explore' && intersects(player, {x:npc.x-6,y:npc.y-6,w:npc.w+12,h:npc.h+12})){
+        // Hide player and start zoom
+        controlsEnabled = false;
+        playerEl.style.opacity = '0';
+        centerOnNPCAndZoom();
+        // After zoom, show first line
+        setTimeout(()=>{
+          stage = 'preCoffee';
+          idx = 0;
+          showOverlay(preCoffeeLines[idx]);
+        }, 620);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
