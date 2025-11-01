@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="preload" as="audio" href="assets/audio/start.mp3" type="audio/mpeg">
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Welcome, Lord Zussy</title>
@@ -158,6 +160,8 @@
       if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openLetter(); }
     });
   })();
+  <audio id="bgm" src="assets/audio/start.mp3" loop preload="auto"></audio>
+
 </script>
 </body>
 </html>
