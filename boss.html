@@ -243,7 +243,8 @@
         showMsg(postCoffeeLines[idx], { clickable:true, sub:'(click)' });
       }else{
         stage = 'done';
-        window.open(NEXT_URL, '_blank');
+        // CHANGED: open in same tab
+        window.location.href = NEXT_URL;
       }
     }
   });
