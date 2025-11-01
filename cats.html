@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Love and Cat Piss</title>
+<title>Room of Very Good Cats</title>
 <style>
   :root{
     --bg:#0a0b10; --text:#e8ecf1; --floor:#0f1320;
@@ -49,7 +49,7 @@
   /* Player (manual control) */
   #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
 
-  /* Heart (36x36), floats straight up from exactly top edge of player */
+  /* Heart (36x36), floats straight up from player top edge */
   .heart{position:absolute;width:36px;height:36px;object-fit:contain;image-rendering:pixelated;
     pointer-events:none; opacity:0; z-index:5}
   @keyframes floatUp {
@@ -70,7 +70,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header><h1>This Room Smells like Love and Cat Pee</h1></header>
+  <header><h1>The Cozy Chamber</h1></header>
 
   <div class="stage">
     <div id="scale" class="scaleBox">
@@ -103,15 +103,17 @@
 
 <script>
 (function(){
-  const NEXT_URL = 'riddle.html'; // go here automatically when you reach the door (after all cats are petted)
+  const NEXT_URL = 'riddle.html'; // next page
 
   // --- Scaling ---
   const scaleBox = document.getElementById('scale');
   const W=960, H=540;
+  let SCALE = 1; // keep actual scale so we can convert viewport px -> logical px
   function fit(){
     const maxW = Math.min(window.innerWidth*0.96, 1200);
     const maxH = window.innerHeight - 160;
-    scaleBox.style.transform = `scale(${Math.min(maxW/W, maxH/H)})`;
+    SCALE = Math.min(maxW/W, maxH/H);
+    scaleBox.style.transform = `scale(${SCALE})`;
   }
   window.addEventListener('resize', fit); fit();
 
@@ -161,19 +163,22 @@
     logEl.appendChild(line);
   }
 
-  // Heart directly above player's head (flush to the top edge, centered)
+  // Heart directly above player's head (flush), slightly raised so it's just above
   function popHeartOverPlayer(){
     const roomRect = room.getBoundingClientRect();
     const pRect    = playerEl.getBoundingClientRect();
 
     const HEART_W = 36, HEART_H = 36;
-    const left = (pRect.left - roomRect.left) + (pRect.width  - HEART_W)/2;
-    const top  = (pRect.top  - roomRect.top)  - HEART_H; // no extra spacing
+    const HEAD_OFFSET = 2; // barely above the head
+
+    // convert from viewport px to logical px using SCALE
+    const leftLogical = ((pRect.left - roomRect.left) / SCALE) + (player.w - HEART_W)/2;
+    const topLogical  = ((pRect.top  - roomRect.top)  / SCALE) - HEART_H - HEAD_OFFSET;
 
     const heart = document.getElementById('heart-tmpl').cloneNode(true);
     heart.id = '';
-    heart.style.left = left + 'px';
-    heart.style.top  = top  + 'px';
+    heart.style.left = leftLogical + 'px';
+    heart.style.top  = topLogical  + 'px';
 
     room.appendChild(heart);
     requestAnimationFrame(()=> heart.classList.add('float'));
