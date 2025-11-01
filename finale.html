@@ -51,16 +51,22 @@
   #message.clickable{ cursor:pointer }
 
   /* Row of sprites aligned to the “floor” */
-  .row{
-    position:absolute; left:0; right:0; bottom:80px;
-    display:flex; justify-content:center; align-items:flex-end; gap:26px;
-    pointer-events:none; /* children handle clicks */
-  }
-  .sprite{
-    height:120px; width:auto; image-rendering:pixelated; display:block;
-    pointer-events:auto;
-    filter: drop-shadow(0 3px 6px rgba(0,0,0,.45));
-  }
+/* Bigger sprites: +60% (120px → 192px) */
+.sprite{
+  height:192px;               /* was 120px */
+  width:auto;
+  image-rendering:pixelated;
+  display:block;
+  pointer-events:auto;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.45));
+}
+
+/* Lower the row a bit (closer to the bottom) */
+.row{
+  position:absolute; left:0; right:0; bottom:48px;  /* was 80px */
+  display:flex; justify-content:center; align-items:flex-end; gap:26px;
+  pointer-events:none;
+}
 
   /* Flash to dark */
   #flash{
