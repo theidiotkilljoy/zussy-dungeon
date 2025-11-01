@@ -174,11 +174,12 @@
     lineEl.textContent = text;
   }
 
-  function sizeCoffee(){ // quarter of Maia’s height
-    const size = Math.round(NPC_H * 0.25);
+  function sizeCoffee(){ // 4× previous size (now = Maia’s height)
+    const size = Math.round(NPC_H * 1.0);
     coffeeEl.style.width = size + 'px';
     coffeeEl.style.height = 'auto';
   }
+
 
   function transformMaia(){
     flashEl.classList.add('flash');
