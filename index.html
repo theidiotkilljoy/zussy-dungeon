@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Envelope → Scroll (Zussy)</title>
+<title>Welcome, Lord Zussy</title>
 <style>
   :root{
     --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --text:#e8ecf1;
-    --parch-1:#efe3c5; --parch-2:#dbcba1; --parch-3:#c9b88a; --ink:#2a2418;
-    --seal:#A60000; --seal-mid:#7d0000; --seal-dark:#4d0000;
+    --parch-1:#f2e7c8; --parch-2:#e5d6b0; --parch-3:#d3c195; --ink:#2a2418;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
@@ -16,45 +15,86 @@
     background:
       radial-gradient(1200px 800px at 50% 0%, #121622 0%, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    min-height:100vh; overflow:auto;
-    display:grid; place-items:center;
-    padding:24px 16px;
+    color:var(--text);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    overflow:auto;
   }
-  .panel{width:min(96vw,880px); background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-    border:1px solid var(--edge); border-radius:14px; padding:18px; text-align:center;
+  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:10px}
+  header{display:grid;place-items:center;padding-top:10px}
+  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(26px,4.6vw,40px)}
+  main{display:grid;place-items:start center}
+  .panel{
+    width:min(96vw,940px);
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+    border:1px solid var(--edge); border-radius:14px;
+    padding:16px 18px 22px;
     box-shadow:inset 0 0 40px rgba(0,0,0,.35), 0 24px 80px rgba(0,0,0,.55);
+    text-align:center;
   }
-  h1{margin:6px 0 14px; font-weight:900; font-size:clamp(26px,4.8vw,40px)}
-  .scene{display:grid; place-items:center; gap:16px}
+  .scene{display:grid;place-items:center;gap:14px}
 
-  /* Envelope */
-  .env{position:relative; width:min(88vw,720px); aspect-ratio:16/9; border-radius:10px;
-    background:linear-gradient(#f4e9cf,#e6d7b3 60%,#d3c195);
-    border:1px solid #b49c6e; box-shadow:inset 0 8px 18px rgba(255,255,255,.25), inset 0 -16px 30px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.45);
+  /* ---------- ENVELOPE ---------- */
+  .envelope{
+    position:relative;
+    width:min(88vw,760px); aspect-ratio:16/9; border-radius:12px;
+    background:linear-gradient(#f7edd2,#eadcb8 60%,#d7c69c);
+    border:1px solid #b49c6e;
+    box-shadow:
+      inset 0 8px 18px rgba(255,255,255,.25),
+      inset 0 -16px 30px rgba(0,0,0,.15),
+      0 18px 50px rgba(0,0,0,.45);
     overflow:hidden;
   }
-  .env::before,.env::after{content:""; position:absolute; inset:auto 0 0; height:52%;
-    background:linear-gradient(#e6d6b2,#d1bf93); clip-path:polygon(0 0,100% 0,50% 100%); filter:drop-shadow(0 -2px 2px rgba(0,0,0,.12));
+  .fold{position:absolute; inset:auto 0 0 0; height:60%; pointer-events:none}
+  .fold.left{
+    left:0; right:50%;
+    background:linear-gradient(180deg,#eadbb5,#d6c398);
+    clip-path:polygon(0 0,100% 0,100% 100%,0 100%,0 0,100% 0,0 100%,0 0,100% 50%);
   }
-  .env::after{opacity:.6; transform:translateY(2px) scaleX(.98)}
-  .flap{position:absolute; inset:0 0 46% 0; background:linear-gradient(#f3e7cb,#e9dbb8 58%,#d5c298);
-    clip-path:polygon(0 0,100% 0,50% 100%,0 0); transform-origin:50% 0; transform:rotateX(0deg);
-    box-shadow:inset 0 -24px 30px rgba(0,0,0,.12); transition:transform 1s cubic-bezier(.2,.7,.2,1);
+  .fold.right{
+    left:50%; right:0;
+    background:linear-gradient(180deg,#eadbb5,#d6c398);
+    clip-path:polygon(0 0,100% 0,100% 100%,0 100%,100% 0,0 50%,100% 100%);
   }
-  .seal{--s: clamp(54px,9vw,82px); position:absolute; left:50%; top:52%; width:var(--s); height:var(--s);
-    margin:-calc(var(--s)/2); border-radius:50%;
-    background:radial-gradient(80% 80% at 30% 30%, #ff6d6d 0%, #d10000 35%, var(--seal) 60%, var(--seal-mid) 85%, var(--seal-dark) 100%);
-    border:2px solid rgba(0,0,0,.35); box-shadow:inset 0 6px 14px rgba(255,255,255,.14), inset 0 -18px 28px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.45);
-    display:grid; place-items:center; cursor:pointer; user-select:none; transition:transform .18s ease, opacity .25s ease;
+  .fold.bottom{
+    left:12%; right:12%; height:58%;
+    background:linear-gradient(180deg,#e6d6b2,#d1bf93);
+    clip-path:polygon(50% 100%, 0 0, 100% 0);
+    filter:drop-shadow(0 -2px 2px rgba(0,0,0,.10));
   }
-  .seal:hover{transform:translateY(-1px) scale(1.02)} .seal:active{transform:translateY(1px) scale(.985)}
-  .seal::after{content:"Z"; color:#fff; font:900 clamp(22px,3.3vw,30px)/1.1 system-ui, sans-serif;
-    text-shadow:0 3px 0 rgba(0,0,0,.35), 0 0 22px rgba(0,0,0,.25);
+  .flap{
+    position:absolute; inset:0 0 54% 0; z-index:2;
+    background:linear-gradient(#f6ecd1,#ecdfbe 58%,#d9c79e);
+    clip-path:polygon(0 0, 100% 0, 50% 100%, 0 0);
+    transform-origin:50% 0; transform:rotateX(0);
+    box-shadow:inset 0 -22px 28px rgba(0,0,0,.12);
+    transition:transform 1s cubic-bezier(.2,.7,.2,1);
+    backface-visibility:hidden;
+  }
+  .seam{
+    position:absolute; left:8%; right:8%; top:50%;
+    height:22px; transform:translateY(-11px); z-index:1;
+    background:radial-gradient(60% 140% at 50% 0, rgba(0,0,0,.22), transparent 70%);
+    pointer-events:none;
   }
 
-  /* Scroll */
-  .scroll{width:min(84vw,680px); margin-inline:auto; max-height:0; overflow:hidden;
+  /* ---------- WAX SEAL (PNG) ---------- */
+  .seal-btn{
+    --s: clamp(60px, 9vw, 110px);
+    position:absolute; left:50%; top:54%; z-index:3;
+    width:var(--s); height:var(--s); margin:-calc(var(--s)/2);
+    display:grid; place-items:center;
+    padding:0; border:none; background:transparent;
+    cursor:pointer; user-select:none;
+    transition:transform .16s ease, opacity .25s ease, filter .16s ease;
+    filter: drop-shadow(0 10px 22px rgba(0,0,0,.55));
+  }
+  .seal-btn:hover{ transform:translateY(-1px) scale(1.02) }
+  .seal-btn:active{ transform:translateY(1px) scale(.985) }
+  .seal-img{ width:100%; height:100%; object-fit:contain; display:block }
+
+  /* ---------- SCROLL ---------- */
+  .scroll{width:min(84vw,700px); margin-inline:auto; max-height:0; overflow:hidden;
     transform:translateY(-8px); opacity:0;
     transition:max-height 1.1s cubic-bezier(.2,.7,.2,1), transform .6s ease, opacity .6s ease;
   }
@@ -69,8 +109,8 @@
   }
   .scroll-in::before{top:-16px; border-radius:10px 10px 0 0}
   .scroll-in::after{bottom:-16px; border-radius:0 0 10px 10px}
-  .quest h2{font:800 clamp(20px,3.8vw,28px)/1.2 "Georgia",serif; margin:0 0 10px}
-  .quest p{margin:.4em auto; max-width:62ch; font:500 16px/1.55 "Georgia",serif}
+  .quest h2{font:800 clamp(20px,3.6vw,28px)/1.2 "Georgia",serif; margin:0 0 10px}
+  .quest p{margin:.45em auto; max-width:62ch; font:500 16px/1.55 "Georgia",serif}
   .cta{margin-top:14px}
   .btn{display:inline-block; background:#0f1320; border:1px solid #2a334a; color:var(--text); padding:12px 18px; border-radius:12px;
     text-decoration:none; font-weight:800; text-transform:uppercase; letter-spacing:.08em;
@@ -78,37 +118,53 @@
   }
 
   /* Opened state */
-  .opened .flap{transform:rotateX(-160deg)}
-  .opened .seal{opacity:0; pointer-events:none; transform:scale(.9) translateY(-6px)}
-  .opened .scroll{max-height:1200px; transform:translateY(-4px); opacity:1}
+  .opened .flap{ transform:rotateX(-162deg) }
+  .opened .seal-btn{ opacity:0; pointer-events:none; transform:scale(.9) translateY(-6px) }
+  .opened .scroll{ max-height:1200px; transform:translateY(-4px); opacity:1 }
 </style>
 </head>
 <body>
-  <div class="panel">
-    <h1>Welcome, Lord Zussy</h1>
-    <div class="scene">
-      <div class="env" id="env" aria-expanded="false">
-        <div class="flap" aria-hidden="true"></div>
-        <div class="seal" id="seal" role="button" tabindex="0" aria-label="Break the wax seal"></div>
-      </div>
+  <div class="wrap">
+    <header><h1>Welcome, Lord Zussy</h1></header>
+    <main>
+      <div class="panel">
+        <div class="scene">
+          <div class="envelope" id="envelope" aria-expanded="false">
+            <div class="fold left"  aria-hidden="true"></div>
+            <div class="fold right" aria-hidden="true"></div>
+            <div class="fold bottom" aria-hidden="true"></div>
+            <div class="seam" aria-hidden="true"></div>
 
-      <div class="scroll" id="scroll" aria-hidden="true">
-        <div class="scroll-in">
-          <section class="quest" aria-live="polite">
-            <h2>Quest for the <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800">32<sup>nd</sup></span> Year</h2>
-            <p>Sir Zachary, you are summoned to a birthday dungeon crawl of cake, cozy vibes, and perilous cuddles.</p>
-            <p>Gather your party (you + Mimi), pack snacks, prepare your best dad jokes, and <em>enter the dungeon</em>.</p>
-            <div class="cta"><a class="btn" href="dungeon.html">enter the dungeon</a></div>
-          </section>
+            <div class="flap" aria-hidden="true"></div>
+
+            <!-- PNG wax seal -->
+            <button id="sealBtn" class="seal-btn" aria-label="Break the wax seal">
+              <img class="seal-img" src="assets/img/seal.png" width="180" height="180" alt="">
+            </button>
+          </div>
+
+          <div class="scroll" id="scroll" aria-hidden="true">
+            <div class="scroll-in">
+              <section class="quest" aria-live="polite">
+                <h2>Quest for the 32<sup>nd</sup> Year</h2>
+                <p>Sir Zachary, by royal decree you are summoned to a birthday dungeon crawl of cake,
+                   cozy vibes, and perilous cuddles.</p>
+                <p>Gather your party (you + Mimi), stock rations, and prepare your finest quips.
+                   Your destiny awaits beyond these seals…</p>
+                <div class="cta"><a class="btn" href="dungeon.html">enter the dungeon</a></div>
+              </section>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
+    <footer style="height:12px"></footer>
   </div>
 
 <script>
-  const env  = document.getElementById('env');
-  const seal = document.getElementById('seal');
-  const scroll = document.getElementById('scroll');
+  const env   = document.getElementById('envelope');
+  const seal  = document.getElementById('sealBtn');
+  const scroll= document.getElementById('scroll');
 
   function openLetter(){
     if(env.classList.contains('opened')) return;
@@ -117,8 +173,8 @@
     scroll.setAttribute('aria-hidden','false');
   }
   seal.addEventListener('click', openLetter);
-  seal.addEventListener('keydown', e => {
-    if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLetter(); }
+  seal.addEventListener('keydown', e=>{
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openLetter(); }
   });
 </script>
 </body>
