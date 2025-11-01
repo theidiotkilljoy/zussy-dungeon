@@ -15,8 +15,7 @@
     background:
       radial-gradient(1200px 800px at 50% 0, #121622 0, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    color:var(--text);
-    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
   }
 
   .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
@@ -41,19 +40,22 @@
   .door::after{content:"";position:absolute;width:6px;height:6px;right:8px;top:50%;
     transform:translateY(-50%);background:#9aa3b2;border-radius:50%}
 
-  /* Cats row */
+  /* Cats row (L→R) */
   .cat{position:absolute;width:96px;height:96px;object-fit:contain;image-rendering:pixelated;cursor:pointer}
   #minnie{left:240px; bottom:112px}
   #jiji  {left:432px; bottom:112px}
   #artie {left:624px; bottom:112px}
 
-  /* Floating heart animation */
-  .heart{position:absolute;width:26px;height:26px;object-fit:contain;image-rendering:pixelated;
-    left:50%; transform:translateX(-50%); bottom:86px; pointer-events:none; opacity:0}
+  /* Player sprite (auto-walks) */
+  #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
+
+  /* Floating heart animation (bigger, lower, slightly left) */
+  .heart{position:absolute;width:36px;height:36px;object-fit:contain;image-rendering:pixelated;
+    pointer-events:none; opacity:0}
   @keyframes floatUp {
-    0% { transform:translate(-50%, 0); opacity:0 }
+    0% { transform:translate(0px, 0px); opacity:0 }
     10%{ opacity:1 }
-    100%{ transform:translate(-50%, -48px); opacity:0 }
+    100%{ transform:translate(-10px, -32px); opacity:0 } /* drift left 10px, rise 32px */
   }
   .float{ animation: floatUp 1.8s ease-out forwards }
 
@@ -65,8 +67,6 @@
     border:1px solid #3a435c; border-radius:10px; background:#0b0f1a; opacity:.95; text-align:left;
     font-size:14px; line-height:1.45; white-space:pre-line;
   }
-  .ok{color:var(--ok)} .warn{color:var(--warn)}
-  .hidden{display:none}
 </style>
 </head>
 <body>
@@ -86,7 +86,10 @@
         <img id="jiji"   class="cat" src="assets/img/jiji.png"   alt="Jiji the cat">
         <img id="artie"  class="cat" src="assets/img/artie.png"  alt="Artie the cat">
 
-        <!-- One reusable heart element per cat (spawned on demand) -->
+        <!-- Player -->
+        <img id="player" src="assets/img/knight2.png" alt="Knight">
+
+        <!-- Heart template (cloned per pet) -->
         <img id="heart-tmpl" class="heart" src="assets/img/heart.png" alt="" aria-hidden="true">
       </div>
     </div>
@@ -100,20 +103,10 @@
 
 <script>
 (function(){
-  const NEXT_URL = 'finale.html'; // change this to your next page
+  const NEXT_URL = 'finale.html'; // change to your next page
 
+  // Scale 960×540 to fit viewport
   const scaleBox = document.getElementById('scale');
-  const room = document.getElementById('room');
-  const door = document.getElementById('door');
-  const logEl = document.getElementById('log');
-  const cats = [
-    { id:'minnie', msg:'Angel baby Minnie loves you so so much.' },
-    { id:'jiji',   msg:'Jiji is grateful for your special nap time cuddles.' },
-    { id:'artie',  msg:'Artie wants you to have the best birthday ever and forgives all the torture you\'ve inflicted on him.' }
-  ];
-  const petted = new Set();
-
-  // Scale the 960×540 playfield to fit viewport
   function fit(){
     const W=960,H=540;
     const maxW = Math.min(window.innerWidth*0.96, 1200);
@@ -123,38 +116,96 @@
   }
   window.addEventListener('resize', fit); fit();
 
-  // Append a message (persistent until leaving room)
+  const room = document.getElementById('room');
+  const door = document.getElementById('door');
+  const logEl = document.getElementById('log');
+
+  const cats = [
+    { id:'minnie', msg:'Angel baby Minnie loves you so so much.' },
+    { id:'jiji',   msg:'Jiji is grateful for your special nap time cuddles.' },
+    { id:'artie',  msg:'Artie wants you to have the best birthday ever and forgives all the torture you\'ve inflicted on him.' }
+  ];
+
+  const petted = new Set();
+
+  // Player setup (auto-walk)
+  const groundY = 540 - 112;
+  const playerEl = document.getElementById('player');
+  const player = { x: 36, y: groundY - 56, w:56, h:56 };
+  place(playerEl, player);
+
+  // Cat positions (from CSS)
+  const catEls = cats.map(c => ({...c, el: document.getElementById(c.id)}));
+  function rectFromStyle(el){
+    const s = getComputedStyle(el);
+    const left = parseFloat(s.left || 0);
+    const bottom = parseFloat(s.bottom || 0);
+    const w = parseFloat(s.width), h = parseFloat(s.height);
+    return { x:left, y:(540 - bottom - h), w, h }; // convert bottom to y from top
+  }
+  const catRects = () => catEls.map(c => ({ id:c.id, msg:c.msg, el:c.el, r:rectFromStyle(c.el) }));
+
+  // Create waypoints: just to the left of each cat, then the door
+  function makeStops(){
+    const rects = catRects();
+    const stops = rects.map(c => ({ type:'cat', id:c.id, x: c.r.x - 10 })); // stop ~10px left of cat
+    // Door stop (just before the door)
+    const s = getComputedStyle(door);
+    const doorLeft = 960 - parseFloat(s.right) - parseFloat(s.width);
+    stops.push({ type:'door', x: doorLeft - 16 });
+    return stops;
+  }
+  let stops = makeStops();
+  window.addEventListener('resize', ()=>{ stops = makeStops(); }); // in case of responsive reflow
+
+  let currentStop = 0;
+  let walking = true;
+  const speed = 1.8;
+
+  function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
+
+  // Append persistent message line
   function appendMsg(text){
     const line = document.createElement('div');
     line.textContent = '• ' + text;
     logEl.appendChild(line);
   }
 
-  // Spawn a floating heart above a given cat element
+  // Spawn a (bigger) heart slightly left & lower over a given cat element
   function popHeart(catEl){
-    const heart = document.getElementById('heart-tmpl').cloneNode(true);
-    heart.id = ''; // make it unique
-    // position the heart centered over the cat
-    const catRect = catEl.getBoundingClientRect();
     const roomRect = room.getBoundingClientRect();
-    const left = (catRect.left - roomRect.left) + catRect.width/2;
-    const bottom = (roomRect.bottom - catRect.top) + 6; // a bit above cat
+    const catRect = catEl.getBoundingClientRect();
+    const heart = document.getElementById('heart-tmpl').cloneNode(true);
+    heart.id = '';
+
+    // Position: lower and a bit left from previous (closer to the cat)
+    const left = (catRect.left - roomRect.left) + catRect.width/2 - 12; // 12px to the left
+    const bottom = (roomRect.bottom - catRect.top) - 6;                 // 6px lower start
     heart.style.left = left + 'px';
     heart.style.bottom = bottom + 'px';
+
     room.appendChild(heart);
-    // trigger animation
     requestAnimationFrame(()=> heart.classList.add('float'));
     setTimeout(()=> heart.remove(), 2000);
   }
 
-  // Pet handler
-  function petCat(cat){
-    const el = document.getElementById(cat.id);
-    if(petted.has(cat.id)) return; // only once each
-    petted.add(cat.id);
-    popHeart(el);
-    appendMsg(cat.msg);
-    // If all petted, unlock door (visual cue: pulse border briefly)
+  // Pet handler (only when we're at that cat's stop)
+  function petCat(id, msg){
+    // must be the current stop and not already petted
+    const thisStop = stops[currentStop];
+    if(!thisStop || thisStop.type !== 'cat' || thisStop.id !== id) return;
+    if(petted.has(id)) return;
+
+    const catEl = document.getElementById(id);
+    petted.add(id);
+    popHeart(catEl);
+    appendMsg(msg);
+
+    // proceed to next stop
+    currentStop++;
+    walking = true;
+
+    // If that was the last cat, pulse the door to hint unlock
     if(petted.size === cats.length){
       door.style.boxShadow = '0 0 0 0 rgba(124,255,184,.6)';
       door.animate([{boxShadow:'0 0 0 0 rgba(124,255,184,.0)'},{boxShadow:'0 0 0 8px rgba(124,255,184,.35)'}],
@@ -162,23 +213,41 @@
     }
   }
 
-  cats.forEach(c=>{
-    const el = document.getElementById(c.id);
-    el.addEventListener('click', ()=> petCat(c));
+  // Click listeners for cats (in order)
+  catEls.forEach(c=>{
+    c.el.addEventListener('click', ()=> petCat(c.id, c.msg));
   });
 
-  // Door click
+  // Door click (only after all petted)
   door.addEventListener('click', ()=>{
     if(petted.size === cats.length){
       window.location.href = NEXT_URL;
     }else{
-      // gentle nudge: shake the door a bit
       door.animate(
         [{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],
         {duration:220, iterations:1}
       );
     }
   });
+
+  // Main loop: auto-walk left→right, stop at each cat until petted, then continue
+  function tick(){
+    const stop = stops[currentStop];
+    if(walking && stop){
+      if(player.x < stop.x){
+        player.x += speed;
+        if(player.x > stop.x) player.x = stop.x;
+        place(playerEl, player);
+      }else{
+        // reached stop: if it's a cat, wait; if it's door and all petted, nudge forward
+        walking = false;
+
+        // If it's the door and we're done, idle here; player clicks door to leave
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 
   // Initial instruction line
   appendMsg('You must pet all three to pass.');
