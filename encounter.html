@@ -15,8 +15,7 @@
     background:
       radial-gradient(1200px 800px at 50% 0, #121622 0, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    color:var(--text);
-    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
   }
 
   .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
@@ -29,23 +28,26 @@
   /* Fixed logical playfield (scaled to fit viewport) */
   #arena{position:relative;width:960px;height:540px;background:var(--floor);
     border:1px solid #222a3b;border-radius:14px;overflow:hidden}
-  #arena::before, #arena::after{
-    content:""; position:absolute; inset:0; pointer-events:none;
-  }
-  /* subtle vignette, no heavy shadows */
-  #arena::after{background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));mix-blend-mode:multiply;opacity:.45}
+  #arena::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));mix-blend-mode:multiply;opacity:.45}
 
-  /* Ground line for a little depth */
-  .ground{position:absolute; left:0; right:0; bottom:112px; height:4px; background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030); opacity:.35}
+  .ground{position:absolute;left:0;right:0;bottom:112px;height:4px;
+    background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030);opacity:.35}
 
-  /* Player */
-  #player{position:absolute; width:56px; height:56px; object-fit:contain; image-rendering:pixelated; pointer-events:none}
+  /* Door on the right */
+  .door{position:absolute;width:40px;height:84px;right:26px;bottom:112px;
+    border:2px solid #313a52;border-radius:8px;background:#131824}
+  .door::after{content:"";position:absolute;width:6px;height:6px;right:8px;top:50%;
+    transform:translateY(-50%);background:#9aa3b2;border-radius:50%}
 
-  /* Enemy uses a wrapper so we can animate transforms without fighting the <img> swaps */
-  #enemyWrap{position:absolute; width:68px; height:68px}
-  #enemy{width:100%; height:100%; object-fit:contain; image-rendering:pixelated; display:block}
+  /* Player (image sprite) */
+  #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
 
-  /* --- Animations --- */
+  /* Enemy uses a wrapper so transforms don’t fight the img swap */
+  #enemyWrap{position:absolute;width:68px;height:68px;cursor:pointer}
+  #enemy{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block}
+
+  /* Animations */
   @keyframes startleY { 0%,100%{transform:translateY(0)} 20%{transform:translateY(-8px)} 40%{transform:translateY(6px)} 60%{transform:translateY(-5px)} 80%{transform:translateY(3px)} }
   @keyframes paceX    { from{transform:translateX(-6px)} to{transform:translateX(6px)} }
   @keyframes shakeY   { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-2px)} }
@@ -53,18 +55,16 @@
   .startle { animation: startleY .55s ease-out }
   .pace    { animation: paceX 1.6s ease-in-out .2s infinite alternate }
   .shake   { animation: shakeY .45s ease-in-out }
+  .dead    { transition:transform .5s ease-out; transform:rotate(90deg); transform-origin:50% 50% }
 
-  .dead { transition: transform .5s ease-out; transform: rotate(90deg); transform-origin:50% 50% }
-
-  /* HUD / prompts */
   .hud{margin-top:10px;opacity:.95;font-size:14px}
   .pill{display:inline-block;padding:4px 8px;border:1px solid #313a52;border-radius:999px;margin:0 4px}
   .counter{display:inline-block;margin-left:10px;padding:4px 8px;border:1px solid #3a435c;border-radius:8px}
-  .ok{color:var(--ok)} .warn{color:var(--warn)}
 
-  .toast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);padding:8px 12px;
-    border:1px solid #3a435c;border-radius:10px;font-size:14px;background:#0b0f1a;opacity:.95}
+  .toast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+    padding:8px 12px;border:1px solid #3a435c;border-radius:10px;font-size:14px;background:#0b0f1a;opacity:.95}
   .hidden{display:none}
+  .ok{color:var(--ok)} .warn{color:var(--warn)}
 </style>
 </head>
 <body>
@@ -76,10 +76,13 @@
       <div id="arena" aria-label="Skeleton encounter battlefield">
         <div class="ground" aria-hidden="true"></div>
 
-        <!-- Player walks in from the left -->
+        <!-- Door -->
+        <div id="door" class="door" title="Exit"></div>
+
+        <!-- Player (WASD) -->
         <img id="player" src="assets/img/knight2.png" alt="Knight">
 
-        <!-- Enemy wrapper (controls shake/pace/death) -->
+        <!-- Enemy -->
         <div id="enemyWrap" class="startle">
           <img id="enemy" src="assets/img/skeleton.png" alt="Skeleton">
         </div>
@@ -89,42 +92,53 @@
     </div>
 
     <div class="hud">
-      <span class="pill">Click the skeleton to strike</span>
-      <span id="rangeNote" class="pill warn">Move closer…</span>
+      <span class="pill">WASD</span> or <span class="pill">Arrows</span> to move.
+      <span class="pill">Click the skeleton when you’re right next to it.</span>
       <span id="hits" class="counter">Hits left: <strong>5</strong></span>
+      <!-- Removed the second “Click to strike!” box -->
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  // Logical arena size & positions
-  const W = 960, H = 540;
-  const groundY = H - 112;          // a “ground” level to align feet
-  const enemyX = 700;               // skeleton position (facing left)
-  const enemyY = groundY - 68;      // 68px tall enemy wrapper
-  const playerEnterX = -80;         // off-screen start
-  const playerTargetOffset = 120;   // stop this many px left of enemy
-  const playerW = 56, playerH = 56;
+  const NEXT_URL = 'victory.html';           // change to your next page
 
+  // Arena sizing & layout
+  const W = 960, H = 540;
+  const groundY = H - 112;
+  const enemyW = 68, enemyH = 68;
+  const enemyX  = 700, enemyY = groundY - enemyH;
+  const playerW = 56,  playerH = 56;
+  const playerStart = { x: 36, y: groundY - playerH };
+
+  // DOM
   const scaleBox = document.getElementById('scale');
   const playerEl = document.getElementById('player');
   const enemyWrap = document.getElementById('enemyWrap');
   const enemyImg  = document.getElementById('enemy');
-  const hitsEl = document.getElementById('hits').querySelector('strong');
-  const rangeNote = document.getElementById('rangeNote');
-  const toastEl = document.getElementById('toast');
+  const doorEl    = document.getElementById('door');
+  const hitsEl    = document.getElementById('hits').querySelector('strong');
+  const toastEl   = document.getElementById('toast');
 
   // Place entities
-  let playerX = playerEnterX;
-  const playerY = groundY - playerH;
-  playerEl.style.left = playerX + 'px';
-  playerEl.style.top  = playerY + 'px';
-
+  let player = { ...playerStart, w:playerW, h:playerH };
+  place(playerEl, player);
+  let enemyAlive = true;
+  let hitsLeft = 5;
   enemyWrap.style.left = enemyX + 'px';
   enemyWrap.style.top  = enemyY + 'px';
+  hitsEl.textContent = hitsLeft;
 
-  // Responsive scale (same strategy as dungeon)
+  // After startle, begin pacing
+  enemyWrap.addEventListener('animationend', (e)=>{
+    if(e.animationName === 'startleY'){
+      enemyWrap.classList.remove('startle');
+      enemyWrap.classList.add('pace');
+    }
+  });
+
+  // Responsive scale
   function fit(){
     const maxW = Math.min(window.innerWidth*0.96, 1200);
     const maxH = window.innerHeight - 140;
@@ -133,69 +147,121 @@
   }
   window.addEventListener('resize', fit); fit();
 
-  // On load: after the startle, begin pacing
-  enemyWrap.addEventListener('animationend', (e)=>{
-    if(e.animationName === 'startleY'){
-      enemyWrap.classList.remove('startle');
-      enemyWrap.classList.add('pace');
-    }
-  });
+  // Input
+  const keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
+  addEventListener('keydown', e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); }},{passive:false});
+  addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); }},{passive:false});
 
-  // Player auto-walk-in
-  const targetX = enemyX - playerTargetOffset - playerW; // align player’s right edge to offset
-  let arrived = false;
-  function walkIn(){
-    if(playerX < targetX){
-      playerX += 2.2;
-      playerEl.style.left = playerX + 'px';
-      requestAnimationFrame(walkIn);
-    }else{
-      arrived = true;
-      rangeNote.classList.remove('warn');
-      rangeNote.classList.add('ok');
-      rangeNote.textContent = 'Click to strike!';
-    }
+  // Movement/collision helpers
+  const speed = 2.8;
+  function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
+  function rect(x,y,w,h){ return {x,y,w,h}; }
+  function intersects(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+  function rectDistance(a,b){
+    const dx = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), 0);
+    const dy = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h), 0);
+    return Math.hypot(dx,dy);
   }
-  requestAnimationFrame(walkIn);
+  const bounds = rect(0,0,W,H);
+  function clampToBounds(e){
+    e.x = Math.max(0, Math.min(e.x, bounds.w - e.w));
+    e.y = Math.max(0, Math.min(e.y, bounds.h - e.h));
+  }
+  function enemyRect(){
+    const style = getComputedStyle(enemyWrap);
+    return rect(parseFloat(style.left), parseFloat(style.top), enemyW, enemyH);
+  }
+  function doorRect(){
+    const s = getComputedStyle(doorEl);
+    const left = W - parseFloat(s.right) - parseFloat(s.width);
+    const top  = H - parseFloat(s.bottom) - parseFloat(s.height);
+    return rect(left, top, parseFloat(s.width), parseFloat(s.height));
+  }
 
-  // Hit logic
-  let hitsLeft = 5;
-  let cooling = false;
-  function toast(msg){
+  // Axis-separated movement with collision against enemy when alive
+  function movePlayer(dx, dy){
+    // X move
+    player.x += dx;
+    clampToBounds(player);
+    if(enemyAlive && intersects(player, enemyRect())){
+      if(dx > 0) player.x = enemyRect().x - player.w;
+      else if(dx < 0) player.x = enemyRect().x + enemyRect().w;
+    }
+    // Y move
+    player.y += dy;
+    clampToBounds(player);
+    if(enemyAlive && intersects(player, enemyRect())){
+      if(dy > 0) player.y = enemyRect().y - player.h;
+      else if(dy < 0) player.y = enemyRect().y + enemyRect().h;
+    }
+    place(playerEl, player);
+  }
+
+  // Toast (now supports sticky messages)
+  let toastTimer;
+  function toast(msg, {sticky=false, cls=''} = {}){
+    toastEl.className = `toast ${cls}`.trim();
     toastEl.textContent = msg;
     toastEl.classList.remove('hidden');
-    clearTimeout(toastEl._t);
-    toastEl._t = setTimeout(()=> toastEl.classList.add('hidden'), 1100);
+    clearTimeout(toastTimer);
+    if(!sticky){
+      toastTimer = setTimeout(()=> toastEl.classList.add('hidden'), 1100);
+    }
   }
 
-  function enemyHit(){
-    if(!arrived){ toast('Step closer…'); return; }
-    if(hitsLeft <= 0 || cooling) return;
+  // Attack logic
+  let cooling = false;
+  function canHit(){ return rectDistance(player, enemyRect()) <= 4; } // right next to
 
+  function hitEnemy(){
+    if(!enemyAlive) return;
+    if(!canHit()){ toast('Move closer…', {cls:'warn'}); return; }
+    if(cooling) return;
     cooling = true;
-    enemyImg.src = 'assets/img/skeleton.gif';           // play hit animation
+
+    enemyImg.src = 'assets/img/skeleton.gif';
     setTimeout(()=>{
       hitsLeft--;
       hitsEl.textContent = hitsLeft;
       if(hitsLeft > 0){
-        enemyImg.src = 'assets/img/skeleton.png';       // back to idle
+        enemyImg.src = 'assets/img/skeleton.png';
         cooling = false;
       }else{
-        // Death: shake, then rotate 90° clockwise
+        // Death: shake, then rotate and allow passage; keep victory text on screen
         enemyImg.src = 'assets/img/skeleton.png';
         enemyWrap.classList.remove('pace');
         enemyWrap.classList.add('shake');
         setTimeout(()=>{
           enemyWrap.classList.remove('shake');
-          enemyWrap.classList.add('dead');              // CSS rotates 90deg
-          toast('The skeleton is defeated!');
+          enemyWrap.classList.add('dead');
+          enemyAlive = false;                   // no longer blocks movement
+          toast('The skeleton is defeated!', {sticky:true, cls:'ok'});
+          cooling = false;
         }, 460);
       }
-    }, 520); // show the GIF briefly, adjust if your GIF is longer/shorter
+    }, 520);
   }
+  enemyWrap.addEventListener('click', hitEnemy);
+  enemyImg.addEventListener('click', hitEnemy);
 
-  enemyWrap.addEventListener('click', enemyHit);
-  enemyImg.addEventListener('click', enemyHit); // (safety) click on the image itself
+  // Main loop
+  function tick(){
+    let dx=0, dy=0;
+    if(keys.w || keys.ArrowUp) dy -= speed;
+    if(keys.s || keys.ArrowDown) dy += speed;
+    if(keys.a || keys.ArrowLeft) dx -= speed;
+    if(keys.d || keys.ArrowRight) dx += speed;
+
+    if(dx || dy) movePlayer(dx, dy);
+
+    // If enemy is dead, allow exiting through the door
+    if(!enemyAlive && intersects(player, doorRect())){
+      window.location.href = NEXT_URL;
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
