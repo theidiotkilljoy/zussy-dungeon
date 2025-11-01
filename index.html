@@ -5,194 +5,155 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Welcome, Lord Zussy</title>
 <style>
-  :root{ --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --accent:#A60000; --text:#e8ecf1; }
+  :root{
+    --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --text:#e8ecf1;
+    --seal:#A60000; --seal-dark:#5b0000; --seal-mid:#7d0000; --accent:#7cffb8;
+  }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{
     background:
       radial-gradient(1200px 800px at 50% 0%, #121622 0%, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    color:var(--text); font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial; overflow:hidden;
+    color:var(--text);
+    font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    overflow:hidden;
   }
   .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:6px;}
-  header{display:grid;place-items:center;padding-top:6px}
-  h1{margin:0;font-weight:900;letter-spacing:.5px;text-transform:lowercase;font-size:clamp(28px,5vw,48px);text-shadow:0 2px 0 #000,0 0 24px rgba(180,139,255,.08)}
+  header{display:grid;place-items:center;padding-top:10px}
+  h1{margin:0;font-weight:900;letter-spacing:.3px;text-transform:lowercase;font-size:clamp(28px,5vw,48px)}
   main{display:grid;place-items:start center}
-  .panel{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--edge);border-radius:16px;padding:10px 14px;box-shadow:inset 0 0 40px rgba(0,0,0,.35),0 24px 80px rgba(0,0,0,.55);width:min(94vw,900px);text-align:center}
-  .subtitle{opacity:.95;margin:2px 0 6px;font-size:clamp(14px,2.4vw,18px)}
-  .d20-wrap{display:grid;place-items:center;gap:6px}
-  #stage{width:clamp(280px,62vw,560px);aspect-ratio:1/1;min-height:280px;position:relative}
-  #stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-  .hint{font-size:12px;opacity:.7;margin-top:6px}
-  footer{display:grid;place-items:center;padding:0 0 14px}
-  .enter{display:none;background:linear-gradient(180deg,#1a2030,#0f1320);border:1px solid #2a334a;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:12px 18px;border-radius:12px;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.5),inset 0 0 20px rgba(166,0,0,.12);text-decoration:none}
-  .enter.show{display:inline-block;animation:pop .35s ease}
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border:1px solid var(--edge); border-radius:16px; padding:16px 18px;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.35), 0 24px 80px rgba(0,0,0,.55);
+    width:min(94vw,900px); text-align:center;
+  }
+  .subtitle{opacity:.95;margin:2px 0 12px;font-size:clamp(14px,2.4vw,18px)}
+  /* Scroll look */
+  .scroll{
+    position:relative; display:inline-block; padding:24px 28px 34px; margin:0 auto 6px;
+    background:
+      radial-gradient(180px 24px at 50% 0, rgba(0,0,0,.25), transparent 60%),
+      linear-gradient(#e9dfc5, #d9caa4 60%, #cbb98e);
+    color:#1b1a16; border-radius:8px; border:1px solid #a08c5a;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.35),
+      inset 0 -10px 30px rgba(0,0,0,.15),
+      0 16px 40px rgba(0,0,0,.35);
+    width:min(88vw,720px);
+  }
+  .scroll:before, .scroll:after{
+    content:""; position:absolute; left:0; right:0; height:16px;
+    background:radial-gradient(50% 100% at 50% 0, rgba(0,0,0,.35), transparent 70%);
+    filter:blur(3px);
+  }
+  .scroll:before{ top:-8px } .scroll:after{ bottom:-10px }
+
+  /* Wax seal “die” */
+  .seal-wrap{display:grid;place-items:center; gap:8px; margin-top:8px}
+  .seal{
+    position:relative; width:min(64vw,360px); aspect-ratio:1/1; border-radius:50%;
+    background:
+      radial-gradient(80% 80% at 30% 30%, #ff5d5d 0%, #c40000 35%, var(--seal) 60%, var(--seal-mid) 85%, var(--seal-dark) 100%);
+    box-shadow:
+      inset 0 6px 14px rgba(255,255,255,.12),
+      inset 0 -18px 26px rgba(0,0,0,.35),
+      0 20px 40px rgba(0,0,0,.55);
+    border:2px solid rgba(0,0,0,.35);
+    cursor:pointer; user-select:none;
+    transition:transform .18s ease, filter .18s ease;
+    display:grid; place-items:center;
+  }
+  .seal:hover{ transform:translateY(-1px) scale(1.01) }
+  .seal:active{ transform:translateY(1px) scale(.995) }
+  .seal::after{ /* subtle rim highlight */
+    content:""; position:absolute; inset:8px; border-radius:50%;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.08), inset 0 0 28px rgba(0,0,0,.25);
+  }
+  /* Impression pattern like a d20 glyph ring (pure CSS) */
+  .rim{ position:absolute; inset:12%; border-radius:50%;
+    background:
+      conic-gradient(from 0deg, rgba(0,0,0,.22) 0 2deg, transparent 2deg 18deg) center/28px 28px repeat;
+    mask-image: radial-gradient(circle at center, transparent 0 58%, black 59% 100%);
+    opacity:.55; pointer-events:none;
+  }
+  /* Number (hidden until reveal) */
+  .num{
+    font: 900 clamp(80px, 22vw, 180px)/1 system-ui, Segoe UI, Roboto, Arial;
+    color:#fff; text-shadow: 0 4px 0 rgba(0,0,0,.35), 0 0 30px rgba(0,0,0,.35);
+    transform:translateY(4px) scale(.94); opacity:0; transition:opacity .3s ease, transform .35s ease;
+    pointer-events:none;
+  }
+
+  /* Click animation: spin & thump */
+  @keyframes rollSeq{
+    0%{ transform:rotate(0) scale(1) }
+    20%{ transform:rotate(180deg) scale(1.02) }
+    55%{ transform:rotate(520deg) scale(.98) }
+    80%{ transform:rotate(700deg) scale(1.01) }
+    100%{ transform:rotate(720deg) scale(1) }
+  }
+  .rolling{ animation: rollSeq 1.3s cubic-bezier(.2,.7,.2,1); }
+  .seal.revealed .num{ opacity:1; transform:translateY(0) scale(1) }
+
+  footer{display:grid;place-items:center;padding:0 0 18px}
+  .enter{
+    display:none; background:linear-gradient(180deg, #1a2030, #0f1320);
+    border:1px solid #2a334a; color:var(--text); font-weight:700; text-transform:uppercase;
+    letter-spacing:.08em; padding:12px 18px; border-radius:12px; cursor:pointer;
+    box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 20px rgba(124,255,184,.12); text-decoration:none;
+  }
+  .enter.show{ display:inline-block; animation:pop .35s ease }
   @keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
-  .error{color:#ffb3b3;font-size:13px;margin-top:8px;display:none}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <header><h1>welcome, lord zussy</h1></header>
+    <header><h1>Welcome, Lord Zussy</h1></header>
+
     <main>
       <div class="panel">
         <div class="subtitle">Roll for initiative!</div>
-        <div class="d20-wrap">
-          <div id="stage" role="img" aria-label="D20 die — click to roll"></div>
-          <div class="hint">click the die</div>
-          <div id="err" class="error"></div>
+
+        <div class="scroll" aria-label="Ancient scroll with a wax seal. Click the seal to roll.">
+          <div class="seal-wrap">
+            <div id="seal" class="seal" role="button" aria-pressed="false" aria-live="polite" tabindex="0">
+              <div class="rim" aria-hidden="true"></div>
+              <div id="num" class="num">32</div>
+            </div>
+            <div class="hint" style="font-size:12px;opacity:.75;color:#cfd6df">click the seal</div>
+          </div>
         </div>
       </div>
     </main>
-    <footer><a id="enterBtn" class="enter" href="dungeon.html">enter the dungeon</a></footer>
+
+    <footer>
+      <a id="enterBtn" class="enter" href="dungeon.html">enter the dungeon</a>
+    </footer>
   </div>
 
-  <!-- Load your local Three.js (absolute path for GitHub Pages). No SVG fallback. -->
-  <script src="/zussy-dungeon/assets/js/three.min.js?v=6"></script>
-  <script>
-    // ---- early checks (Three present + WebGL on) ----
-    (function precheck(){
-      if(!window.THREE){ return fail("Three.js failed to load from /zussy-dungeon/assets/js/three.min.js"); }
-      const test=document.createElement("canvas");
-      if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){
-        return fail("WebGL appears disabled in this browser (enable hardware acceleration).");
-      }
-    })();
+<script>
+  const seal = document.getElementById('seal');
+  const num  = document.getElementById('num');
+  const enterBtn = document.getElementById('enterBtn');
+  let rolled = false;
 
-    const stage = document.getElementById("stage");
-    const enterBtn = document.getElementById("enterBtn");
-    const errEl = document.getElementById("err");
-    const easeInOut = t => t<.5?2*t*t:-1+(4-2*t)*t;
-    let rolled = false;
+  function go(){
+    if(rolled) return;
+    rolled = true;
+    seal.setAttribute('aria-pressed','true');
+    seal.classList.add('rolling');
 
-    function fail(msg){
-      const el=document.getElementById("err");
-      el.textContent = msg;
-      el.style.display = "block";
-      throw new Error(msg);
-    }
-
-    // ---- Three.js scene ----
-    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    stage.innerHTML=""; stage.appendChild(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-    camera.position.set(0,0.75,5.2);
-
-    // Lighting (soft, Google-ish)
-    const hemi = new THREE.HemisphereLight(0xfff6f6, 0x0a0a12, 0.65); scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.05); key.position.set(3,4,2);
-    key.castShadow = true; key.shadow.mapSize.set(1024,1024); key.shadow.camera.near=1; key.shadow.camera.far=12; scene.add(key);
-    const rim = new THREE.DirectionalLight(0xffc0c0, 0.6); rim.position.set(-3,2,-2); scene.add(rim);
-
-    // Soft contact shadow
-    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.25 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), shadowMat);
-    ground.rotation.x = -Math.PI/2; ground.position.y = -1.55; ground.receiveShadow = true; scene.add(ground);
-
-    // D20 geometry + edges
-    const geo = new THREE.IcosahedronGeometry(1.2,0);
-    const mat = new THREE.MeshStandardMaterial({ color:0xA60000, metalness:0.35, roughness:0.35 });
-    const die = new THREE.Mesh(geo,mat); die.castShadow = true; scene.add(die);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color:0x2a0000, transparent:true, opacity:0.9 })); scene.add(edges);
-    edges.renderOrder = 0; die.renderOrder = 1;
-
-    // Build face list (centroid + normal + edge length)
-    const pos=geo.attributes.position, idx=geo.index, faces=[];
-    for(let i=0;i<idx.count;i+=3){
-      const a=idx.getX(i), b=idx.getX(i+1), c=idx.getX(i+2);
-      const va=new THREE.Vector3().fromBufferAttribute(pos,a);
-      const vb=new THREE.Vector3().fromBufferAttribute(pos,b);
-      const vc=new THREE.Vector3().fromBufferAttribute(pos,c);
-      const centroid=new THREE.Vector3().addVectors(va,vb).add(vc).multiplyScalar(1/3);
-      const normal=new THREE.Vector3().subVectors(vb,va).cross(new THREE.Vector3().subVectors(vc,va)).normalize();
-      const edge=va.distanceTo(vb);
-      faces.push({va,vb,vc,centroid,normal,edge});
-    }
-    const front=new THREE.Vector3(0,0,1); let landing=0,best=-Infinity;
-    faces.forEach((f,i)=>{ const s=f.normal.dot(front); if(s>best){best=s; landing=i;} });
-    const landingFace = faces[landing];
-
-    // Number label (a plane that sits on the landing face)
-    const cn=document.createElement("canvas"); cn.width=cn.height=512; const cx=cn.getContext("2d");
-    function drawNum(n){
-      cx.clearRect(0,0,512,512);
-      const g=cx.createRadialGradient(256,256,40,256,256,256);
-      g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0.22)");
-      cx.fillStyle=g; cx.beginPath(); cx.arc(256,256,256,0,Math.PI*2); cx.fill();
-      cx.font="900 300px system-ui, Segoe UI, Roboto, Arial"; cx.textAlign="center"; cx.textBaseline="middle";
-      cx.lineWidth=18; cx.strokeStyle="#200"; cx.fillStyle="#fff";
-      cx.strokeText(String(n),256,280); cx.fillText(String(n),256,280);
-    }
-    drawNum(20);
-    const numTex=new THREE.CanvasTexture(cn); numTex.anisotropy=8;
-    const label=new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({ map:numTex, transparent:true, depthTest:false, depthWrite:false }));
-    label.renderOrder=2; die.add(label);
-    const size=landingFace.edge*0.92; label.scale.set(size,size,1);
-    const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), landingFace.normal.clone().normalize());
-    label.quaternion.copy(q);
-    label.position.copy(landingFace.centroid.clone().add(landingFace.normal.clone().multiplyScalar(0.021)));
-
-    // Resize: keep canvas perfectly square
-    function resize(){ const w=stage.getBoundingClientRect().width||300; renderer.setSize(w,w,false); camera.aspect=1; camera.updateProjectionMatrix(); }
-    new ResizeObserver(resize).observe(stage); resize();
-    window.addEventListener("orientationchange", ()=>setTimeout(resize, 200));
-
-    // Idle spin
-    let spinning=true, t0=performance.now();
-    (function anim(now){
-      const dt=(now-t0)/1000; t0=now;
-      if(spinning){ die.rotation.y+=dt*0.55; die.rotation.x+=dt*0.24; edges.rotation.copy(die.rotation); }
-      renderer.render(scene,camera); requestAnimationFrame(anim);
-    })(performance.now());
-
-    function alignFaceToCamera(face){
-      // Aim face normal at camera (+Z)
-      const current=face.normal.clone().applyQuaternion(die.quaternion).normalize();
-      const rot=new THREE.Quaternion().setFromUnitVectors(current, new THREE.Vector3(0,0,1));
-      die.quaternion.multiply(rot); edges.quaternion.copy(die.quaternion);
-      // Twist so one vertex is perfectly up (keeps the number upright)
-      const va=face.va.clone().applyQuaternion(die.quaternion);
-      const vb=face.vb.clone().applyQuaternion(die.quaternion);
-      const vc=face.vc.clone().applyQuaternion(die.quaternion);
-      const cen=face.centroid.clone().applyQuaternion(die.quaternion);
-      const verts=[va,vb,vc].sort((p,q)=>q.y-p.y); const top=verts[0];
-      const dir=new THREE.Vector2(top.x-cen.x, top.y-cen.y);
-      const delta=(Math.PI/2) - Math.atan2(dir.y, dir.x);
-      die.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), delta));
-      edges.quaternion.copy(die.quaternion);
-    }
-
-    function roll(){
-      const seq=[3,14,7,18,11,19,9,15,6,12,17,8,13,10,16,5,4,2,1,20,32]; // deterministic, not RNG
-      const total=1300; const t0=performance.now();
-      (function step(now){
-        const t=Math.min(1,(now-t0)/total);
-        const i=Math.floor(easeInOut(t)*(seq.length-1));
-        drawNum(seq[i]); numTex.needsUpdate=true;
-        die.rotation.set(die.rotation.x+0.12, die.rotation.y+0.22, die.rotation.z+0.18);
-        edges.rotation.copy(die.rotation);
-        t<1?requestAnimationFrame(step):finalize();
-      })(performance.now());
-    }
-
-    function finalize(){
-      drawNum(32); numTex.needsUpdate=true;
-      alignFaceToCamera(landingFace);
-      // tiny settle bounce
-      die.position.y = 0.03;
-      const t0=performance.now(); const dur=220;
-      (function bounce(now){
-        const t=Math.min(1,(now-t0)/dur); die.position.y = 0.03*(1 - t);
-        renderer.render(scene,camera); t<1?requestAnimationFrame(bounce):0;
-      })(performance.now());
-      enterBtn.classList.add("show");
-    }
-
-    stage.addEventListener("click", ()=>{ if(rolled) return; rolled=true; spinning=false; roll(); });
-  </script>
+    // “Deterministic” — no RNG: always 32
+    // After the spin, reveal the number and show the button
+    setTimeout(()=>{
+      seal.classList.add('revealed');
+      enterBtn.classList.add('show');
+    }, 1300); // matches keyframe duration
+  }
+  seal.addEventListener('click', go);
+  seal.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); go(); }});
+</script>
 </body>
 </html>
