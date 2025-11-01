@@ -18,32 +18,30 @@
     color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
   }
 
-  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
-  header{display:grid;place-items:center;padding-top:8px}
-  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
+  /* No header row anymore */
+  .wrap{min-height:100dvh;display:grid;grid-template-rows:1fr auto;gap:8px}
 
   .stage{display:grid;place-items:center;padding:8px 12px}
   .scaleBox{transform-origin:top center}
 
-  /* Fixed logical playfield (scaled to fit viewport) */
+  /* Fixed logical playfield */
   #arena{position:relative;width:960px;height:540px;background:var(--floor);
     border:1px solid #222a3b;border-radius:14px;overflow:hidden}
   #arena::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));mix-blend-mode:multiply;opacity:.45}
+    background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));
+    mix-blend-mode:multiply;opacity:.45}
 
   .ground{position:absolute;left:0;right:0;bottom:112px;height:4px;
     background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030);opacity:.35}
 
-  /* Door on the right */
+  /* Door on the right (keep these numbers in sync with JS constants below) */
   .door{position:absolute;width:40px;height:84px;right:26px;bottom:112px;
     border:2px solid #313a52;border-radius:8px;background:#131824}
   .door::after{content:"";position:absolute;width:6px;height:6px;right:8px;top:50%;
     transform:translateY(-50%);background:#9aa3b2;border-radius:50%}
 
-  /* Player (image sprite) */
+  /* Player & enemy */
   #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
-
-  /* Enemy uses a wrapper so transforms don’t fight the img swap */
   #enemyWrap{position:absolute;width:68px;height:68px;cursor:pointer}
   #enemy{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block}
 
@@ -51,13 +49,12 @@
   @keyframes startleY { 0%,100%{transform:translateY(0)} 20%{transform:translateY(-8px)} 40%{transform:translateY(6px)} 60%{transform:translateY(-5px)} 80%{transform:translateY(3px)} }
   @keyframes paceX    { from{transform:translateX(-6px)} to{transform:translateX(6px)} }
   @keyframes shakeY   { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-2px)} }
-
   .startle { animation: startleY .55s ease-out }
   .pace    { animation: paceX 1.6s ease-in-out .2s infinite alternate }
   .shake   { animation: shakeY .45s ease-in-out }
   .dead    { transition:transform .5s ease-out; transform:rotate(90deg); transform-origin:50% 50% }
 
-  .hud{margin-top:10px;opacity:.95;font-size:14px}
+  .hud{margin:0 0 10px;opacity:.95;font-size:14px;text-align:center}
   .pill{display:inline-block;padding:4px 8px;border:1px solid #313a52;border-radius:999px;margin:0 4px}
   .counter{display:inline-block;margin-left:10px;padding:4px 8px;border:1px solid #3a435c;border-radius:8px}
 
@@ -69,8 +66,6 @@
 </head>
 <body>
 <div class="wrap">
-  <header><h1>Enemy Encounter</h1></header>
-
   <div class="stage">
     <div id="scale" class="scaleBox">
       <div id="arena" aria-label="Skeleton encounter battlefield">
@@ -79,7 +74,7 @@
         <!-- Door -->
         <div id="door" class="door" title="Exit"></div>
 
-        <!-- Player (WASD) -->
+        <!-- Player -->
         <img id="player" src="assets/img/knight2.png" alt="Knight">
 
         <!-- Enemy -->
@@ -90,44 +85,53 @@
         <div id="toast" class="toast hidden"></div>
       </div>
     </div>
+  </div>
 
-    <div class="hud">
-      <span class="pill">WASD</span> or <span class="pill">Arrows</span> to move.
-      <span class="pill">Click the skeleton when you’re right next to it.</span>
-      <span id="hits" class="counter">Hits left: <strong>5</strong></span>
-      <!-- Removed the second “Click to strike!” box -->
-    </div>
+  <div class="hud">
+    <span class="pill">WASD</span> or <span class="pill">Arrows</span> to move.
+    <span class="pill">Click the skeleton when you’re right next to it.</span>
+    <span id="hits" class="counter">Hits left: <strong>5</strong></span>
   </div>
 </div>
 
 <script>
 (function(){
-  const NEXT_URL = 'cats.html';           // change to your next page
+  const NEXT_URL = 'cats.html'; // where the door leads
 
-  // Arena sizing & layout
+  // Logical stage
   const W = 960, H = 540;
-  const groundY = H - 112;
+  const GROUND_BOTTOM = 112;
+
+  // Door constants mirrored from CSS (so we don't parse CSS at runtime)
+  const DOOR_W = 40, DOOR_H = 84, DOOR_RIGHT = 26, DOOR_BOTTOM = GROUND_BOTTOM;
+
+  // Entities (fixed sizes mirrored from CSS)
   const enemyW = 68, enemyH = 68;
-  const enemyX  = 700, enemyY = groundY - enemyH;
-  const playerW = 56,  playerH = 56;
-  const playerStart = { x: 36, y: groundY - playerH };
+  const playerW = 56, playerH = 56;
+
+  // Positions (logical coordinates)
+  const enemyX  = 700, enemyY = H - GROUND_BOTTOM - enemyH; // faces left
+  const playerStartX = 36, playerStartY = H - GROUND_BOTTOM - playerH;
 
   // DOM
   const scaleBox = document.getElementById('scale');
+  const arena    = document.getElementById('arena');
   const playerEl = document.getElementById('player');
-  const enemyWrap = document.getElementById('enemyWrap');
-  const enemyImg  = document.getElementById('enemy');
-  const doorEl    = document.getElementById('door');
-  const hitsEl    = document.getElementById('hits').querySelector('strong');
-  const toastEl   = document.getElementById('toast');
+  const enemyWrap= document.getElementById('enemyWrap');
+  const enemyImg = document.getElementById('enemy');
+  const hitsEl   = document.getElementById('hits').querySelector('strong');
+  const doorEl   = document.getElementById('door');
+  const toastEl  = document.getElementById('toast');
 
-  // Place entities
-  let player = { ...playerStart, w:playerW, h:playerH };
+  // Place elements explicitly (so they never default to 0,0)
+  let player = { x: playerStartX, y: playerStartY, w: playerW, h: playerH };
   place(playerEl, player);
-  let enemyAlive = true;
-  let hitsLeft = 5;
   enemyWrap.style.left = enemyX + 'px';
   enemyWrap.style.top  = enemyY + 'px';
+
+  // State
+  let enemyAlive = true;
+  let hitsLeft = 5;
   hitsEl.textContent = hitsLeft;
 
   // After startle, begin pacing
@@ -141,7 +145,7 @@
   // Responsive scale
   function fit(){
     const maxW = Math.min(window.innerWidth*0.96, 1200);
-    const maxH = window.innerHeight - 140;
+    const maxH = window.innerHeight - 120;
     const s = Math.min(maxW/W, maxH/H);
     scaleBox.style.transform = `scale(${s})`;
   }
@@ -152,7 +156,7 @@
   addEventListener('keydown', e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); }},{passive:false});
   addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); }},{passive:false});
 
-  // Movement/collision helpers
+  // Helpers
   const speed = 2.8;
   function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
   function rect(x,y,w,h){ return {x,y,w,h}; }
@@ -162,32 +166,28 @@
     const dy = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h), 0);
     return Math.hypot(dx,dy);
   }
+  function enemyRect(){ return rect(enemyX, enemyY, enemyW, enemyH); } // robust: no CSS parsing
+  function doorRect(){
+    const left = W - DOOR_RIGHT - DOOR_W;
+    const top  = H - DOOR_BOTTOM - DOOR_H;
+    return rect(left, top, DOOR_W, DOOR_H);
+  }
   const bounds = rect(0,0,W,H);
   function clampToBounds(e){
     e.x = Math.max(0, Math.min(e.x, bounds.w - e.w));
     e.y = Math.max(0, Math.min(e.y, bounds.h - e.h));
   }
-  function enemyRect(){
-    const style = getComputedStyle(enemyWrap);
-    return rect(parseFloat(style.left), parseFloat(style.top), enemyW, enemyH);
-  }
-  function doorRect(){
-    const s = getComputedStyle(doorEl);
-    const left = W - parseFloat(s.right) - parseFloat(s.width);
-    const top  = H - parseFloat(s.bottom) - parseFloat(s.height);
-    return rect(left, top, parseFloat(s.width), parseFloat(s.height));
-  }
 
-  // Axis-separated movement with collision against enemy when alive
+  // Movement with collision against enemy while alive
   function movePlayer(dx, dy){
-    // X move
+    // X
     player.x += dx;
     clampToBounds(player);
     if(enemyAlive && intersects(player, enemyRect())){
       if(dx > 0) player.x = enemyRect().x - player.w;
       else if(dx < 0) player.x = enemyRect().x + enemyRect().w;
     }
-    // Y move
+    // Y
     player.y += dy;
     clampToBounds(player);
     if(enemyAlive && intersects(player, enemyRect())){
@@ -197,7 +197,7 @@
     place(playerEl, player);
   }
 
-  // Toast (now supports sticky messages)
+  // Toast (supports sticky)
   let toastTimer;
   function toast(msg, {sticky=false, cls=''} = {}){
     toastEl.className = `toast ${cls}`.trim();
@@ -209,10 +209,9 @@
     }
   }
 
-  // Attack logic
+  // Combat
   let cooling = false;
-  function canHit(){ return rectDistance(player, enemyRect()) <= 4; } // right next to
-
+  function canHit(){ return rectDistance(player, enemyRect()) <= 4; }
   function hitEnemy(){
     if(!enemyAlive) return;
     if(!canHit()){ toast('Move closer…', {cls:'warn'}); return; }
@@ -227,7 +226,6 @@
         enemyImg.src = 'assets/img/skeleton.png';
         cooling = false;
       }else{
-        // Death: shake, then rotate and allow passage; keep victory text on screen
         enemyImg.src = 'assets/img/skeleton.png';
         enemyWrap.classList.remove('pace');
         enemyWrap.classList.add('shake');
@@ -254,7 +252,7 @@
 
     if(dx || dy) movePlayer(dx, dy);
 
-    // If enemy is dead, allow exiting through the door
+    // Exit if enemy dead and player overlaps door
     if(!enemyAlive && intersects(player, doorRect())){
       window.location.href = NEXT_URL;
       return;
