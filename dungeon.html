@@ -24,36 +24,31 @@
 
   .stage{display:grid;place-items:center;padding:8px 12px}
 
-  /* The game field has a fixed internal resolution (960×540) and scales to fit. */
+  /* Game field @ 960×540 logical px; scales to fit */
   #gameWrap{position:relative; width:960px; height:540px; background:var(--floor);
     border:1px solid #222a3b; border-radius:14px; overflow:hidden}
-  #gameWrap::after{ /* subtle vignette */
+  #gameWrap::after{
     content:""; position:absolute; inset:0; pointer-events:none;
     background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.18), rgba(0,0,0,.55));
     mix-blend-mode:multiply; opacity:.5;
   }
-  /* Scale container to fit viewport */
   .scaleBox{transform-origin:top center}
 
-  /* HUD */
   .hud{margin-top:10px; opacity:.9; font-size:14px}
   .pill{display:inline-block; padding:4px 8px; border:1px solid #313a52; border-radius:999px; margin:0 4px}
 
-  /* Tiles/objects are absolutely positioned inside #gameWrap */
   .wall{position:absolute; background:linear-gradient(180deg, var(--stone), var(--stone2))}
   .door{position:absolute; width:36px; height:72px; right:24px; top:50%; transform:translateY(-50%);
     border:2px solid #313a52; border-radius:6px; background:#131824}
   .door::after{content:""; position:absolute; width:6px; height:6px; right:6px; top:50%; transform:translateY(-50%);
     background:#9aa3b2; border-radius:50%}
 
-  /* Player */
-  #player{position:absolute; width:26px; height:26px; border-radius:6px;
-    background:linear-gradient(180deg,#9be9cc,#7cffb8); border:2px solid #2e4f49;
-    box-shadow:0 0 10px rgba(124,255,184,.35)}
-  /* Chest image overlay (DOM so the GIF animates) */
+  /* Player sprite (image) */
+  #player{position:absolute; width:36px; height:36px; object-fit:contain; image-rendering:pixelated; pointer-events:none}
+
+  /* Chest image (png→gif) */
   #chest{position:absolute; width:48px; height:48px; object-fit:contain; image-rendering:pixelated}
 
-  /* Status toasts */
   .toast{position:absolute; left:50%; bottom:10px; transform:translateX(-50%); padding:8px 12px;
     border:1px solid #3a435c; border-radius:10px; font-size:14px; background:#0b0f1a; opacity:.95}
   .ok{border-color:#345b50}
@@ -73,7 +68,7 @@
         <div class="wall" style="left:0; top:0; width:20px; height:540px"></div>
         <div class="wall" style="right:0; top:0; width:20px; height:540px"></div>
 
-        <!-- Simple zig-zag maze walls (leaves a path from left → chest → door) -->
+        <!-- Zig-zag maze -->
         <div class="wall" style="left:80px; top:180px; width:820px; height:20px"></div>
         <div class="wall" style="left:80px; top:340px; width:820px; height:20px"></div>
 
@@ -83,16 +78,16 @@
         <div class="wall" style="left:640px; top:260px; width:20px; height:80px"></div>
         <div class="wall" style="left:780px; top:200px; width:20px; height:80px"></div>
 
-        <!-- Door on the right -->
+        <!-- Door -->
         <div id="door" class="door" title="Exit"></div>
 
-        <!-- Chest (PNG → GIF when touched) -->
+        <!-- Chest -->
         <img id="chest" src="assets/img/chest.png" alt="Treasure chest">
 
-        <!-- Player -->
-        <div id="player" aria-label="Player"></div>
-
-        <!-- Toast messages -->
+        <!-- Player (starts as knight without sword) -->
+        <img id="player" src="assets/img/knight1.png" alt="Knight">
+        
+        <!-- Toast -->
         <div id="toast" class="toast" style="display:none"></div>
       </div>
     </div>
@@ -106,12 +101,16 @@
 
 <script>
 (function(){
-  // --- Basic settings ---
+  // --- World constants ---
   const worldW = 960, worldH = 540;
-  const speed = 2.8; // px per frame
-  const player = { x: 36, y: worldH/2 - 13, w:26, h:26 }; // start near left
+  const speed = 2.8;
+  const PLAYER_W = 36, PLAYER_H = 36;
+
+  // Entities
+  const player = { x: 36, y: worldH/2 - PLAYER_H/2, w: PLAYER_W, h: PLAYER_H };
   const chestPos = { x: worldW/2 - 24, y: worldH/2 - 24, w:48, h:48 };
-  const doorRect = () => getRect(document.getElementById('door'));
+
+  // State
   let keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
   let chestOpened = false;
 
@@ -119,16 +118,15 @@
   const scaleBox = document.getElementById('scale');
   const field = document.getElementById('gameWrap');
   const playerEl = document.getElementById('player');
-  const chestEl = document.getElementById('chest');
-  const toastEl = document.getElementById('toast');
+  const chestEl  = document.getElementById('chest');
+  const toastEl  = document.getElementById('toast');
   const envWalls = [...document.querySelectorAll('.wall')].map(el => getRect(el));
+  const doorEl   = document.getElementById('door');
 
-  // Place chest
+  // Place chest & player
   chestEl.style.left = chestPos.x + 'px';
   chestEl.style.top  = chestPos.y + 'px';
   chestEl.width = chestPos.w; chestEl.height = chestPos.h;
-
-  // Place player
   place(playerEl, player);
 
   // Responsive scale
@@ -151,29 +149,29 @@
   }
   function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
   function intersects(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+  const doorRect = () => getRect(doorEl);
 
-  // Movement & collisions (AABB, axis separated)
+  // Movement with AABB collision
   function move(entity, dx, dy){
-    // X axis
     entity.x += dx;
     for(const w of envWalls){
       if(intersects(entity, w)){
-        if(dx > 0) entity.x = w.x - entity.w; else if(dx < 0) entity.x = w.x + w.w;
+        if(dx > 0) entity.x = w.x - entity.w;
+        else if(dx < 0) entity.x = w.x + w.w;
       }
     }
-    // Y axis
     entity.y += dy;
     for(const w of envWalls){
       if(intersects(entity, w)){
-        if(dy > 0) entity.y = w.y - entity.h; else if(dy < 0) entity.y = w.y + w.h;
+        if(dy > 0) entity.y = w.y - entity.h;
+        else if(dy < 0) entity.y = w.y + w.h;
       }
     }
-    // Keep inside field just in case
     entity.x = Math.max(20, Math.min(entity.x, worldW-20-entity.w));
     entity.y = Math.max(20, Math.min(entity.y, worldH-20-entity.h));
   }
 
-  // Key handling
+  // Input
   addEventListener('keydown', e=>{
     if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); }
   }, {passive:false});
@@ -181,7 +179,7 @@
     if(keys.hasOwnProperty(e.key)) { keys[e.key]=false; e.preventDefault(); }
   }, {passive:false});
 
-  // Toast helper
+  // Toast
   let toastTimer;
   function toast(msg, cls=''){
     toastEl.className = `toast ${cls}`.trim();
@@ -202,18 +200,20 @@
     if(dx || dy){
       move(player, dx, dy);
       place(playerEl, player);
-      // Chest interaction
+
+      // Chest interaction → upgrade sprite + play chest gif
       if(!chestOpened && intersects(player, chestPos)){
         chestOpened = true;
         chestEl.src = 'assets/img/chest.gif';
-        toast('You found a chest! ✨', 'ok');
+        playerEl.src = 'assets/img/knight2.png'; // knight gets sword
+        toast('You equip a sword! ⚔️', 'ok');
       }
-      // Door interaction (only after chest opened)
+
+      // Door interaction
       if(chestOpened && intersects(player, doorRect())){
         toast('Entering...', 'ok');
         setTimeout(()=>{ window.location.href = 'encounter.html'; }, 350);
-      }
-      if(!chestOpened && intersects(player, doorRect())){
+      } else if(!chestOpened && intersects(player, doorRect())){
         toast('The door is locked… find the chest.', 'warn');
       }
     }
