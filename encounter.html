@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Encounter — Skeleton</title>
+<style>
+  :root{
+    --bg:#0a0b10; --text:#e8ecf1; --floor:#0f1320;
+    --stone:#1b1f2b; --stone2:#242b3a; --ok:#7cffb8; --warn:#ffb86b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:
+      radial-gradient(1200px 800px at 50% 0, #121622 0, #0a0b10 70%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
+    color:var(--text);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  }
+
+  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
+  header{display:grid;place-items:center;padding-top:8px}
+  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
+
+  .stage{display:grid;place-items:center;padding:8px 12px}
+  .scaleBox{transform-origin:top center}
+
+  /* Fixed logical playfield (scaled to fit viewport) */
+  #arena{position:relative;width:960px;height:540px;background:var(--floor);
+    border:1px solid #222a3b;border-radius:14px;overflow:hidden}
+  #arena::before, #arena::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+  }
+  /* subtle vignette, no heavy shadows */
+  #arena::after{background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.15), rgba(0,0,0,.45));mix-blend-mode:multiply;opacity:.45}
+
+  /* Ground line for a little depth */
+  .ground{position:absolute; left:0; right:0; bottom:112px; height:4px; background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030); opacity:.35}
+
+  /* Player */
+  #player{position:absolute; width:56px; height:56px; object-fit:contain; image-rendering:pixelated; pointer-events:none}
+
+  /* Enemy uses a wrapper so we can animate transforms without fighting the <img> swaps */
+  #enemyWrap{position:absolute; width:68px; height:68px}
+  #enemy{width:100%; height:100%; object-fit:contain; image-rendering:pixelated; display:block}
+
+  /* --- Animations --- */
+  @keyframes startleY { 0%,100%{transform:translateY(0)} 20%{transform:translateY(-8px)} 40%{transform:translateY(6px)} 60%{transform:translateY(-5px)} 80%{transform:translateY(3px)} }
+  @keyframes paceX    { from{transform:translateX(-6px)} to{transform:translateX(6px)} }
+  @keyframes shakeY   { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-2px)} }
+
+  .startle { animation: startleY .55s ease-out }
+  .pace    { animation: paceX 1.6s ease-in-out .2s infinite alternate }
+  .shake   { animation: shakeY .45s ease-in-out }
+
+  .dead { transition: transform .5s ease-out; transform: rotate(90deg); transform-origin:50% 50% }
+
+  /* HUD / prompts */
+  .hud{margin-top:10px;opacity:.95;font-size:14px}
+  .pill{display:inline-block;padding:4px 8px;border:1px solid #313a52;border-radius:999px;margin:0 4px}
+  .counter{display:inline-block;margin-left:10px;padding:4px 8px;border:1px solid #3a435c;border-radius:8px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)}
+
+  .toast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);padding:8px 12px;
+    border:1px solid #3a435c;border-radius:10px;font-size:14px;background:#0b0f1a;opacity:.95}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Enemy Encounter</h1></header>
+
+  <div class="stage">
+    <div id="scale" class="scaleBox">
+      <div id="arena" aria-label="Skeleton encounter battlefield">
+        <div class="ground" aria-hidden="true"></div>
+
+        <!-- Player walks in from the left -->
+        <img id="player" src="assets/img/knight2.png" alt="Knight">
+
+        <!-- Enemy wrapper (controls shake/pace/death) -->
+        <div id="enemyWrap" class="startle">
+          <img id="enemy" src="assets/img/skeleton.png" alt="Skeleton">
+        </div>
+
+        <div id="toast" class="toast hidden"></div>
+      </div>
+    </div>
+
+    <div class="hud">
+      <span class="pill">Click the skeleton to strike</span>
+      <span id="rangeNote" class="pill warn">Move closer…</span>
+      <span id="hits" class="counter">Hits left: <strong>5</strong></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Logical arena size & positions
+  const W = 960, H = 540;
+  const groundY = H - 112;          // a “ground” level to align feet
+  const enemyX = 700;               // skeleton position (facing left)
+  const enemyY = groundY - 68;      // 68px tall enemy wrapper
+  const playerEnterX = -80;         // off-screen start
+  const playerTargetOffset = 120;   // stop this many px left of enemy
+  const playerW = 56, playerH = 56;
+
+  const scaleBox = document.getElementById('scale');
+  const playerEl = document.getElementById('player');
+  const enemyWrap = document.getElementById('enemyWrap');
+  const enemyImg  = document.getElementById('enemy');
+  const hitsEl = document.getElementById('hits').querySelector('strong');
+  const rangeNote = document.getElementById('rangeNote');
+  const toastEl = document.getElementById('toast');
+
+  // Place entities
+  let playerX = playerEnterX;
+  const playerY = groundY - playerH;
+  playerEl.style.left = playerX + 'px';
+  playerEl.style.top  = playerY + 'px';
+
+  enemyWrap.style.left = enemyX + 'px';
+  enemyWrap.style.top  = enemyY + 'px';
+
+  // Responsive scale (same strategy as dungeon)
+  function fit(){
+    const maxW = Math.min(window.innerWidth*0.96, 1200);
+    const maxH = window.innerHeight - 140;
+    const s = Math.min(maxW/W, maxH/H);
+    scaleBox.style.transform = `scale(${s})`;
+  }
+  window.addEventListener('resize', fit); fit();
+
+  // On load: after the startle, begin pacing
+  enemyWrap.addEventListener('animationend', (e)=>{
+    if(e.animationName === 'startleY'){
+      enemyWrap.classList.remove('startle');
+      enemyWrap.classList.add('pace');
+    }
+  });
+
+  // Player auto-walk-in
+  const targetX = enemyX - playerTargetOffset - playerW; // align player’s right edge to offset
+  let arrived = false;
+  function walkIn(){
+    if(playerX < targetX){
+      playerX += 2.2;
+      playerEl.style.left = playerX + 'px';
+      requestAnimationFrame(walkIn);
+    }else{
+      arrived = true;
+      rangeNote.classList.remove('warn');
+      rangeNote.classList.add('ok');
+      rangeNote.textContent = 'Click to strike!';
+    }
+  }
+  requestAnimationFrame(walkIn);
+
+  // Hit logic
+  let hitsLeft = 5;
+  let cooling = false;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.remove('hidden');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(()=> toastEl.classList.add('hidden'), 1100);
+  }
+
+  function enemyHit(){
+    if(!arrived){ toast('Step closer…'); return; }
+    if(hitsLeft <= 0 || cooling) return;
+
+    cooling = true;
+    enemyImg.src = 'assets/img/skeleton.gif';           // play hit animation
+    setTimeout(()=>{
+      hitsLeft--;
+      hitsEl.textContent = hitsLeft;
+      if(hitsLeft > 0){
+        enemyImg.src = 'assets/img/skeleton.png';       // back to idle
+        cooling = false;
+      }else{
+        // Death: shake, then rotate 90° clockwise
+        enemyImg.src = 'assets/img/skeleton.png';
+        enemyWrap.classList.remove('pace');
+        enemyWrap.classList.add('shake');
+        setTimeout(()=>{
+          enemyWrap.classList.remove('shake');
+          enemyWrap.classList.add('dead');              // CSS rotates 90deg
+          toast('The skeleton is defeated!');
+        }, 460);
+      }
+    }, 520); // show the GIF briefly, adjust if your GIF is longer/shorter
+  }
+
+  enemyWrap.addEventListener('click', enemyHit);
+  enemyImg.addEventListener('click', enemyHit); // (safety) click on the image itself
+})();
+</script>
+</body>
+</html>
