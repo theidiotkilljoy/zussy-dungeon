@@ -50,8 +50,8 @@
     font-weight:800; letter-spacing:.2px; text-align:center;
     backdrop-filter: blur(2px);
     user-select:none; display:none;
-    z-index:40;              /* <-- ensures it sits above the scene */
-    pointer-events:auto;     /* toggled in JS when needed */
+    z-index:40;
+    pointer-events:auto;
   }
   #message.clickable{ cursor:pointer }
   #sub{display:block;opacity:.9;font-weight:600;font-size:.9em;margin-top:4px}
@@ -98,6 +98,9 @@
     </div>
   </div>
 
+  <!-- Background music -->
+  <audio id="bgm" src="assets/audio/shop.mp3" loop preload="auto" autoplay playsinline></audio>
+
 <script>
 (function(){
   // ----- Constants -----
@@ -121,6 +124,24 @@
 
   const coffeeEl = document.getElementById('coffee');
   const flashEl  = document.getElementById('flash');
+
+  // ----- Audio (autoplay with fallback) -----
+  const bgm = document.getElementById('bgm');
+  if (bgm){
+    bgm.volume = 0.65;
+    const tryPlay = () => bgm.play().catch(()=>{});
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      tryPlay();
+    } else {
+      window.addEventListener('DOMContentLoaded', tryPlay, { once:true });
+    }
+    const unlock = () => { bgm.play().catch(()=>{}); 
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once:true });
+    window.addEventListener('keydown',   unlock, { once:true });
+  }
 
   function fit(){
     const maxW = Math.min(window.innerWidth*0.96, 1200);
@@ -222,7 +243,7 @@
         showMsg(postCoffeeLines[idx], { clickable:true, sub:'(click)' });
       }else{
         stage = 'done';
-        window.open('finale.html', '_blank');
+        window.open(NEXT_URL, '_blank');
       }
     }
   });
