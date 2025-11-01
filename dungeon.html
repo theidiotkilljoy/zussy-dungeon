@@ -1,19 +1,226 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>The Dungeon</title>
-  <style>
-    body { margin:0; display:grid; place-items:center; height:100dvh; background:#0a0b10; color:#e8ecf1; font:16px/1.4 system-ui, sans-serif; }
-    a { color:#7cffb8; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeon — Zussy</title>
+<style>
+  :root{
+    --bg:#0a0b10; --text:#e8ecf1;
+    --stone:#1b1f2b; --stone2:#242b3a; --floor:#0f1320; --accent:#b48bff; --ok:#7cffb8; --warn:#ffb86b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:
+      radial-gradient(1200px 800px at 50% 0%, #121622 0%, #0a0b10 70%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
+    color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  }
+
+  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
+  header{display:grid;place-items:center;padding-top:8px}
+  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
+
+  .stage{display:grid;place-items:center;padding:8px 12px}
+
+  /* The game field has a fixed internal resolution (960×540) and scales to fit. */
+  #gameWrap{position:relative; width:960px; height:540px; background:var(--floor);
+    border:1px solid #222a3b; border-radius:14px; overflow:hidden}
+  #gameWrap::after{ /* subtle vignette */
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 0, rgba(0,0,0,.18), rgba(0,0,0,.55));
+    mix-blend-mode:multiply; opacity:.5;
+  }
+  /* Scale container to fit viewport */
+  .scaleBox{transform-origin:top center}
+
+  /* HUD */
+  .hud{margin-top:10px; opacity:.9; font-size:14px}
+  .pill{display:inline-block; padding:4px 8px; border:1px solid #313a52; border-radius:999px; margin:0 4px}
+
+  /* Tiles/objects are absolutely positioned inside #gameWrap */
+  .wall{position:absolute; background:linear-gradient(180deg, var(--stone), var(--stone2))}
+  .door{position:absolute; width:36px; height:72px; right:24px; top:50%; transform:translateY(-50%);
+    border:2px solid #313a52; border-radius:6px; background:#131824}
+  .door::after{content:""; position:absolute; width:6px; height:6px; right:6px; top:50%; transform:translateY(-50%);
+    background:#9aa3b2; border-radius:50%}
+
+  /* Player */
+  #player{position:absolute; width:26px; height:26px; border-radius:6px;
+    background:linear-gradient(180deg,#9be9cc,#7cffb8); border:2px solid #2e4f49;
+    box-shadow:0 0 10px rgba(124,255,184,.35)}
+  /* Chest image overlay (DOM so the GIF animates) */
+  #chest{position:absolute; width:48px; height:48px; object-fit:contain; image-rendering:pixelated}
+
+  /* Status toasts */
+  .toast{position:absolute; left:50%; bottom:10px; transform:translateX(-50%); padding:8px 12px;
+    border:1px solid #3a435c; border-radius:10px; font-size:14px; background:#0b0f1a; opacity:.95}
+  .ok{border-color:#345b50}
+  .warn{border-color:#6b4b2a}
+</style>
 </head>
 <body>
-  <div>
-    <h1>🗝️ The Dungeon</h1>
-    <p>Coming next: a tiny grid room with WASD/arrow movement.</p>
-    <p><a href="index.html">← Back to the letter</a></p>
+<div class="wrap">
+  <header><h1>Enter the Dungeon</h1></header>
+
+  <div class="stage">
+    <div id="scale" class="scaleBox">
+      <div id="gameWrap" aria-label="Dungeon room">
+        <!-- Border walls -->
+        <div class="wall" style="left:0; top:0; width:960px; height:20px"></div>
+        <div class="wall" style="left:0; bottom:0; width:960px; height:20px"></div>
+        <div class="wall" style="left:0; top:0; width:20px; height:540px"></div>
+        <div class="wall" style="right:0; top:0; width:20px; height:540px"></div>
+
+        <!-- Simple zig-zag maze walls (leaves a path from left → chest → door) -->
+        <div class="wall" style="left:80px; top:180px; width:820px; height:20px"></div>
+        <div class="wall" style="left:80px; top:340px; width:820px; height:20px"></div>
+
+        <div class="wall" style="left:220px; top:200px; width:20px; height:80px"></div>
+        <div class="wall" style="left:360px; top:260px; width:20px; height:80px"></div>
+        <div class="wall" style="left:500px; top:200px; width:20px; height:80px"></div>
+        <div class="wall" style="left:640px; top:260px; width:20px; height:80px"></div>
+        <div class="wall" style="left:780px; top:200px; width:20px; height:80px"></div>
+
+        <!-- Door on the right -->
+        <div id="door" class="door" title="Exit"></div>
+
+        <!-- Chest (PNG → GIF when touched) -->
+        <img id="chest" src="assets/img/chest.png" alt="Treasure chest">
+
+        <!-- Player -->
+        <div id="player" aria-label="Player"></div>
+
+        <!-- Toast messages -->
+        <div id="toast" class="toast" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="hud">
+      <span class="pill">WASD</span> or <span class="pill">Arrow Keys</span> to move.
+      Find the chest, then reach the door ➜
+    </div>
   </div>
+</div>
+
+<script>
+(function(){
+  // --- Basic settings ---
+  const worldW = 960, worldH = 540;
+  const speed = 2.8; // px per frame
+  const player = { x: 36, y: worldH/2 - 13, w:26, h:26 }; // start near left
+  const chestPos = { x: worldW/2 - 24, y: worldH/2 - 24, w:48, h:48 };
+  const doorRect = () => getRect(document.getElementById('door'));
+  let keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
+  let chestOpened = false;
+
+  // DOM
+  const scaleBox = document.getElementById('scale');
+  const field = document.getElementById('gameWrap');
+  const playerEl = document.getElementById('player');
+  const chestEl = document.getElementById('chest');
+  const toastEl = document.getElementById('toast');
+  const envWalls = [...document.querySelectorAll('.wall')].map(el => getRect(el));
+
+  // Place chest
+  chestEl.style.left = chestPos.x + 'px';
+  chestEl.style.top  = chestPos.y + 'px';
+  chestEl.width = chestPos.w; chestEl.height = chestPos.h;
+
+  // Place player
+  place(playerEl, player);
+
+  // Responsive scale
+  function fit(){
+    const maxW = Math.min(window.innerWidth*0.96, 1200);
+    const maxH = window.innerHeight - 140;
+    const s = Math.min(maxW/worldW, maxH/worldH);
+    scaleBox.style.transform = `scale(${s})`;
+  }
+  window.addEventListener('resize', fit); fit();
+
+  // Helpers
+  function getRect(el){
+    const style = getComputedStyle(el);
+    const left = parseFloat(style.left || (field.clientWidth - parseFloat(style.right||0) - parseFloat(style.width||0)));
+    const top  = parseFloat(style.top  || (field.clientHeight - parseFloat(style.bottom||0) - parseFloat(style.height||0)));
+    const width = parseFloat(style.width);
+    const height= parseFloat(style.height);
+    return {x:left, y:top, w:width, h:height};
+  }
+  function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
+  function intersects(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+
+  // Movement & collisions (AABB, axis separated)
+  function move(entity, dx, dy){
+    // X axis
+    entity.x += dx;
+    for(const w of envWalls){
+      if(intersects(entity, w)){
+        if(dx > 0) entity.x = w.x - entity.w; else if(dx < 0) entity.x = w.x + w.w;
+      }
+    }
+    // Y axis
+    entity.y += dy;
+    for(const w of envWalls){
+      if(intersects(entity, w)){
+        if(dy > 0) entity.y = w.y - entity.h; else if(dy < 0) entity.y = w.y + w.h;
+      }
+    }
+    // Keep inside field just in case
+    entity.x = Math.max(20, Math.min(entity.x, worldW-20-entity.w));
+    entity.y = Math.max(20, Math.min(entity.y, worldH-20-entity.h));
+  }
+
+  // Key handling
+  addEventListener('keydown', e=>{
+    if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); }
+  }, {passive:false});
+  addEventListener('keyup', e=>{
+    if(keys.hasOwnProperty(e.key)) { keys[e.key]=false; e.preventDefault(); }
+  }, {passive:false});
+
+  // Toast helper
+  let toastTimer;
+  function toast(msg, cls=''){
+    toastEl.className = `toast ${cls}`.trim();
+    toastEl.textContent = msg;
+    toastEl.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toastEl.style.display='none', 1600);
+  }
+
+  // Main loop
+  function tick(){
+    let dx = 0, dy = 0;
+    if(keys.w || keys.ArrowUp)    dy -= speed;
+    if(keys.s || keys.ArrowDown)  dy += speed;
+    if(keys.a || keys.ArrowLeft)  dx -= speed;
+    if(keys.d || keys.ArrowRight) dx += speed;
+
+    if(dx || dy){
+      move(player, dx, dy);
+      place(playerEl, player);
+      // Chest interaction
+      if(!chestOpened && intersects(player, chestPos)){
+        chestOpened = true;
+        chestEl.src = 'assets/img/chest.gif';
+        toast('You found a chest! ✨', 'ok');
+      }
+      // Door interaction (only after chest opened)
+      if(chestOpened && intersects(player, doorRect())){
+        toast('Entering...', 'ok');
+        setTimeout(()=>{ window.location.href = 'encounter.html'; }, 350);
+      }
+      if(!chestOpened && intersects(player, doorRect())){
+        toast('The door is locked… find the chest.', 'warn');
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>
