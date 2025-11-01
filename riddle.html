@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Riddle Door</title>
+<style>
+  :root{
+    --text:#ffffff;
+    --shadow:rgba(0,0,0,.65);
+    --accent:#7cffb8;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    min-height:100dvh;
+    background:#000;
+    color:var(--text);
+    font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    overflow:hidden;
+  }
+
+  /* Fullscreen scene with background image */
+  #scene{
+    position:fixed; inset:0;
+    background:#000 url('assets/img/riddledoor.png') center/cover no-repeat;
+  }
+
+  /* Bottom overlay with big bold text; click to advance */
+  #overlay{
+    position:fixed; left:0; right:0; bottom:0;
+    padding:18px 20px 22px;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.35) 40%, rgba(0,0,0,.65));
+    cursor:pointer;
+  }
+  #line{
+    font-weight:900;
+    letter-spacing:.2px;
+    text-shadow:0 2px 8px var(--shadow), 0 0 24px rgba(0,0,0,.45);
+    font-size:clamp(22px, 3.6vw, 42px);
+    margin:0 0 10px;
+    user-select:none;
+  }
+
+  /* Answer row appears after the final prompt */
+  #answerRow{
+    display:none;
+    gap:10px;
+    align-items:center;
+  }
+  #answerInput{
+    flex:1 1 auto;
+    max-width:520px;
+    padding:10px 12px;
+    font-size:18px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.25);
+    background:rgba(0,0,0,.35);
+    color:#fff;
+    outline:none;
+    box-shadow:inset 0 0 0 9999px rgba(255,255,255,.03);
+  }
+  #submitBtn{
+    padding:10px 14px;
+    font-size:16px;
+    font-weight:700;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.25);
+    background:rgba(0,0,0,.45);
+    color:#fff;
+    cursor:pointer;
+  }
+  #submitBtn:focus, #answerInput:focus{ outline:2px solid var(--accent); outline-offset:2px }
+
+  /* Tiny status text for wrong tries (stays on screen until next try) */
+  #status{
+    margin-top:6px;
+    font-size:14px;
+    opacity:.9;
+  }
+
+  /* Make input row layout nice on narrow screens */
+  .row{
+    display:flex; flex-wrap:wrap;
+  }
+</style>
+</head>
+<body>
+<div id="scene" role="img" aria-label="Ancient stone door with runes"></div>
+
+<!-- Bottom overlay: click to advance lines -->
+<div id="overlay" aria-live="polite" aria-atomic="true">
+  <div id="line">HALT!</div>
+  <div id="answerRow" class="row" aria-hidden="true">
+    <input id="answerInput" type="text" autocomplete="off" placeholder="Type your answer…">
+    <button id="submitBtn" type="button">Submit</button>
+  </div>
+  <div id="status" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  const NEXT_URL = 'boss.html';
+  const BG_DOOR = "assets/img/riddledoor.png";
+  const BG_GOBLIN = "assets/img/goblin.png";
+
+  // Preload the goblin to avoid a pop-in
+  const _pre = new Image(); _pre.src = BG_GOBLIN;
+
+  // Lines to click through
+  const lines = [
+    'HALT!',
+    'You must solve my riddle before passing.',
+    "Sorry, but it's the rules. Ready?",
+    'Name me and so shall you break me. What am I?'
+  ];
+  let step = 0;               // which line we’re showing
+  let phase = 'intro';        // 'intro' → 'riddle' → 'pass'
+
+  // DOM
+  const scene = document.getElementById('scene');
+  const overlay = document.getElementById('overlay');
+  const lineEl = document.getElementById('line');
+  const row = document.getElementById('answerRow');
+  const input = document.getElementById('answerInput');
+  const submit = document.getElementById('submitBtn');
+  const status = document.getElementById('status');
+
+  // Prevent clicks inside the input/button from bubbling and advancing text
+  [input, submit].forEach(el => el.addEventListener('click', e => e.stopPropagation()));
+
+  function showLine(i){
+    lineEl.textContent = lines[i];
+  }
+  showLine(step);
+
+  overlay.addEventListener('click', ()=>{
+    if(phase === 'intro'){
+      if(step < lines.length - 1){
+        step++;
+        showLine(step);
+        // When we reach the final riddle line, reveal the answer row and stop advancing on click
+        if(step === lines.length - 1){
+          row.style.display = 'flex';
+          row.setAttribute('aria-hidden','false');
+          // Focus the input after a tick so virtual keyboards behave
+          setTimeout(()=> input.focus(), 0);
+        }
+      }
+      return;
+    }
+
+    if(phase === 'pass'){
+      // Next click after the goblin message goes to the next page
+      window.location.href = NEXT_URL;
+    }
+  });
+
+  function normalize(s){
+    return s.trim().toLowerCase();
+  }
+
+  function submitAnswer(){
+    const val = normalize(input.value);
+    if(val === 'silence' || val === 'the silence'){
+      // Correct
+      phase = 'pass';
+      status.textContent = '';
+      // Swap background
+      scene.style.backgroundImage = `url('${BG_GOBLIN}')`;
+      // Replace line with pass text, hide the answer row
+      lineEl.textContent = 'Okay, you can pass. Happy Birthday, by the way!';
+      row.style.display = 'none';
+      row.setAttribute('aria-hidden','true');
+      // Make sure overlay is clickable again to proceed
+      overlay.style.cursor = 'pointer';
+      // Optional: clear input so if they come back it's empty
+      input.value = '';
+    }else{
+      status.textContent = 'That is not the word.';
+      // little shake feedback
+      overlay.animate(
+        [{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],
+        {duration:220, iterations:1}
+      );
+      input.focus();
+      input.select();
+    }
+  }
+
+  submit.addEventListener('click', submitAnswer);
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ submitAnswer(); }
+    // prevent overlay from thinking this is a click/advance
+    e.stopPropagation();
+  });
+})();
+</script>
+</body>
+</html>
