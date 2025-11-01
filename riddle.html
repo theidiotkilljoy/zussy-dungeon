@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>The Riddle Door</title>
+<link rel="preload" as="audio" href="assets/audio/determine.mp3" type="audio/mpeg">
 <style>
   :root{
     --text:#ffffff;
@@ -98,11 +99,32 @@
   <div id="status" aria-live="polite"></div>
 </div>
 
+<!-- Background music -->
+<audio id="bgm" src="assets/audio/determine.mp3" loop preload="auto" autoplay playsinline></audio>
+
 <script>
 (function(){
   const NEXT_URL = 'boss.html';
   const BG_DOOR = "assets/img/riddledoor.png";
   const BG_GOBLIN = "assets/img/goblin.png";
+
+  // --- Audio autoplay with gesture fallback ---
+  const bgm = document.getElementById('bgm');
+  if (bgm){
+    bgm.volume = 0.7;
+    const tryPlay = () => bgm.play().catch(()=>{});
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      tryPlay();
+    } else {
+      window.addEventListener('DOMContentLoaded', tryPlay, { once:true });
+    }
+    const unlock = () => { bgm.play().catch(()=>{}); 
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once:true });
+    window.addEventListener('keydown',   unlock, { once:true });
+  }
 
   // Preload the goblin to avoid a pop-in
   const _pre = new Image(); _pre.src = BG_GOBLIN;
@@ -143,7 +165,6 @@
         if(step === lines.length - 1){
           row.style.display = 'flex';
           row.setAttribute('aria-hidden','false');
-          // Focus the input after a tick so virtual keyboards behave
           setTimeout(()=> input.focus(), 0);
         }
       }
@@ -151,7 +172,6 @@
     }
 
     if(phase === 'pass'){
-      // Next click after the goblin message goes to the next page
       window.location.href = NEXT_URL;
     }
   });
@@ -166,19 +186,13 @@
       // Correct
       phase = 'pass';
       status.textContent = '';
-      // Swap background
       scene.style.backgroundImage = `url('${BG_GOBLIN}')`;
-      // Replace line with pass text, hide the answer row
       lineEl.textContent = 'Okay, you can pass. Happy Birthday, by the way!';
       row.style.display = 'none';
       row.setAttribute('aria-hidden','true');
-      // Make sure overlay is clickable again to proceed
-      overlay.style.cursor = 'pointer';
-      // Optional: clear input so if they come back it's empty
       input.value = '';
     }else{
       status.textContent = 'That is not the word.';
-      // little shake feedback
       overlay.animate(
         [{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],
         {duration:220, iterations:1}
@@ -191,7 +205,6 @@
   submit.addEventListener('click', submitAnswer);
   input.addEventListener('keydown', (e)=>{
     if(e.key === 'Enter'){ submitAnswer(); }
-    // prevent overlay from thinking this is a click/advance
     e.stopPropagation();
   });
 })();
