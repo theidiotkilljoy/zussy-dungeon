@@ -12,8 +12,7 @@
     background:
       radial-gradient(1200px 800px at 50% 0%, #121622 0%, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    color:var(--text); font:16px/1.4 ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
-    overflow:hidden;
+    color:var(--text); font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial; overflow:hidden;
   }
   .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:6px;}
   header{display:grid;place-items:center;padding-top:6px}
@@ -23,7 +22,7 @@
   .subtitle{opacity:.95;margin:2px 0 6px;font-size:clamp(14px,2.4vw,18px)}
   .d20-wrap{display:grid;place-items:center;gap:6px}
   #stage{width:clamp(280px,62vw,560px);aspect-ratio:1/1;min-height:280px;position:relative}
-  #stage canvas,#stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   .hint{font-size:12px;opacity:.7;margin-top:6px}
   footer{display:grid;place-items:center;padding:0 0 14px}
   .enter{display:none;background:linear-gradient(180deg,#1a2030,#0f1320);border:1px solid #2a334a;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:12px 18px;border-radius:12px;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.5),inset 0 0 20px rgba(166,0,0,.12);text-decoration:none}
@@ -48,59 +47,32 @@
     <footer><a id="enterBtn" class="enter" href="dungeon.html">enter the dungeon</a></footer>
   </div>
 
-<script>
-  // ---------- Shared helpers & SVG fallback ----------
-  const stage = document.getElementById("stage");
-  const enterBtn = document.getElementById("enterBtn");
-  const errEl = document.getElementById("err");
-  const easeInOut = t => t<.5?2*t*t:-1+(4-2*t)*t;
-  let rolled = false;
+  <!-- Load your local Three.js (absolute path for GitHub Pages). No SVG fallback. -->
+  <script src="/zussy-dungeon/assets/js/three.min.js?v=6"></script>
+  <script>
+    // ---- early checks (Three present + WebGL on) ----
+    (function precheck(){
+      if(!window.THREE){ return fail("Three.js failed to load from /zussy-dungeon/assets/js/three.min.js"); }
+      const test=document.createElement("canvas");
+      if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){
+        return fail("WebGL appears disabled in this browser (enable hardware acceleration).");
+      }
+    })();
 
-  function showErr(msg){ errEl.textContent = msg; errEl.style.display = "block"; }
+    const stage = document.getElementById("stage");
+    const enterBtn = document.getElementById("enterBtn");
+    const errEl = document.getElementById("err");
+    const easeInOut = t => t<.5?2*t*t:-1+(4-2*t)*t;
+    let rolled = false;
 
-  function mountSVG(){
-    stage.innerHTML = `
-      <svg viewBox="0 0 512 512">
-        <defs>
-          <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stop-color="#A60000"/>
-            <stop offset="60%" stop-color="#7d0000"/>
-            <stop offset="100%" stop-color="#4d0000"/>
-          </linearGradient>
-        </defs>
-        <polygon points="256,16 480,160 400,464 112,464 32,160" fill="url(#g)" stroke="#3a0000" stroke-width="6"/>
-        <g stroke="#3a0000" stroke-width="2" opacity=".9">
-          <line x1="256" y1="16" x2="256" y2="496"/>
-          <line x1="32" y1="160" x2="480" y2="160"/>
-          <line x1="112" y1="464" x2="400" y2="464"/>
-          <line x1="32" y1="160" x2="112" y2="464"/>
-          <line x1="480" y1="160" x2="400" y2="464"/>
-        </g>
-        <text id="svgNum" x="256" y="276" text-anchor="middle" font-size="160" font-weight="900" fill="#fff"
-          style="paint-order:stroke;stroke:#200;stroke-width:12px">20</text>
-      </svg>`;
-    const svg = stage.querySelector("svg");
-    const num = document.getElementById("svgNum");
-    stage.onclick = ()=>{
-      if(rolled) return; rolled = true;
-      const seq=[3,14,7,18,11,19,9,15,6,12,17,8,13,10,16,5,4,2,1,20,32];
-      const total=1200; const t0=performance.now();
-      (function step(now){
-        const t=Math.min(1,(now-t0)/total); num.textContent = seq[Math.floor(easeInOut(t)*(seq.length-1))];
-        svg.style.transform=`rotate(${t*720}deg)`; t<1?requestAnimationFrame(step):finalize();
-      })(performance.now());
-    };
-    function finalize(){ num.textContent="32"; enterBtn.classList.add("show"); }
-  }
-
-  // ---------- True 3D (Three.js) ----------
-  function mountThree(){
-    if(!window.THREE){ showErr("Three.js not present; using flat backup."); return mountSVG(); }
-    const ctest=document.createElement("canvas");
-    if(!(ctest.getContext("webgl")||ctest.getContext("experimental-webgl"))){
-      showErr("WebGL disabled; showing flat backup."); return mountSVG();
+    function fail(msg){
+      const el=document.getElementById("err");
+      el.textContent = msg;
+      el.style.display = "block";
+      throw new Error(msg);
     }
 
+    // ---- Three.js scene ----
     const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -110,21 +82,25 @@
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
     camera.position.set(0,0.75,5.2);
 
+    // Lighting (soft, Google-ish)
     const hemi = new THREE.HemisphereLight(0xfff6f6, 0x0a0a12, 0.65); scene.add(hemi);
     const key = new THREE.DirectionalLight(0xffffff, 1.05); key.position.set(3,4,2);
     key.castShadow = true; key.shadow.mapSize.set(1024,1024); key.shadow.camera.near=1; key.shadow.camera.far=12; scene.add(key);
     const rim = new THREE.DirectionalLight(0xffc0c0, 0.6); rim.position.set(-3,2,-2); scene.add(rim);
 
+    // Soft contact shadow
     const shadowMat = new THREE.ShadowMaterial({ opacity: 0.25 });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), shadowMat);
     ground.rotation.x = -Math.PI/2; ground.position.y = -1.55; ground.receiveShadow = true; scene.add(ground);
 
+    // D20 geometry + edges
     const geo = new THREE.IcosahedronGeometry(1.2,0);
     const mat = new THREE.MeshStandardMaterial({ color:0xA60000, metalness:0.35, roughness:0.35 });
     const die = new THREE.Mesh(geo,mat); die.castShadow = true; scene.add(die);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color:0x2a0000, transparent:true, opacity:0.9 })); scene.add(edges);
+    edges.renderOrder = 0; die.renderOrder = 1;
 
-    // Build faces
+    // Build face list (centroid + normal + edge length)
     const pos=geo.attributes.position, idx=geo.index, faces=[];
     for(let i=0;i<idx.count;i+=3){
       const a=idx.getX(i), b=idx.getX(i+1), c=idx.getX(i+2);
@@ -137,11 +113,12 @@
       faces.push({va,vb,vc,centroid,normal,edge});
     }
     const front=new THREE.Vector3(0,0,1); let landing=0,best=-Infinity;
-    faces.forEach((f,i)=>{const s=f.normal.dot(front); if(s>best){best=s; landing=i;}}); const face=faces[landing];
+    faces.forEach((f,i)=>{ const s=f.normal.dot(front); if(s>best){best=s; landing=i;} });
+    const landingFace = faces[landing];
 
-    // Number plane
-    const c=document.createElement("canvas"); c.width=c.height=512; const cx=c.getContext("2d");
-    function draw(n){
+    // Number label (a plane that sits on the landing face)
+    const cn=document.createElement("canvas"); cn.width=cn.height=512; const cx=cn.getContext("2d");
+    function drawNum(n){
       cx.clearRect(0,0,512,512);
       const g=cx.createRadialGradient(256,256,40,256,256,256);
       g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0.22)");
@@ -150,29 +127,38 @@
       cx.lineWidth=18; cx.strokeStyle="#200"; cx.fillStyle="#fff";
       cx.strokeText(String(n),256,280); cx.fillText(String(n),256,280);
     }
-    draw(20);
-    const tex=new THREE.CanvasTexture(c); tex.anisotropy=8;
-    const label=new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({ map:tex, transparent:true, depthTest:false, depthWrite:false }));
+    drawNum(20);
+    const numTex=new THREE.CanvasTexture(cn); numTex.anisotropy=8;
+    const label=new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({ map:numTex, transparent:true, depthTest:false, depthWrite:false }));
     label.renderOrder=2; die.add(label);
-    const size=face.edge*0.92; label.scale.set(size,size,1);
-    const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), face.normal.clone().normalize());
+    const size=landingFace.edge*0.92; label.scale.set(size,size,1);
+    const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), landingFace.normal.clone().normalize());
     label.quaternion.copy(q);
-    label.position.copy(face.centroid.clone().add(face.normal.clone().multiplyScalar(0.021)));
+    label.position.copy(landingFace.centroid.clone().add(landingFace.normal.clone().multiplyScalar(0.021)));
 
+    // Resize: keep canvas perfectly square
     function resize(){ const w=stage.getBoundingClientRect().width||300; renderer.setSize(w,w,false); camera.aspect=1; camera.updateProjectionMatrix(); }
     new ResizeObserver(resize).observe(stage); resize();
+    window.addEventListener("orientationchange", ()=>setTimeout(resize, 200));
 
+    // Idle spin
     let spinning=true, t0=performance.now();
-    (function anim(now){ const dt=(now-t0)/1000; t0=now; if(spinning){ die.rotation.y+=dt*0.55; die.rotation.x+=dt*0.24; edges.rotation.copy(die.rotation);} renderer.render(scene,camera); requestAnimationFrame(anim); })(performance.now());
+    (function anim(now){
+      const dt=(now-t0)/1000; t0=now;
+      if(spinning){ die.rotation.y+=dt*0.55; die.rotation.x+=dt*0.24; edges.rotation.copy(die.rotation); }
+      renderer.render(scene,camera); requestAnimationFrame(anim);
+    })(performance.now());
 
-    function alignFaceToCamera(f){
-      const current=f.normal.clone().applyQuaternion(die.quaternion).normalize();
+    function alignFaceToCamera(face){
+      // Aim face normal at camera (+Z)
+      const current=face.normal.clone().applyQuaternion(die.quaternion).normalize();
       const rot=new THREE.Quaternion().setFromUnitVectors(current, new THREE.Vector3(0,0,1));
       die.quaternion.multiply(rot); edges.quaternion.copy(die.quaternion);
-      const va=f.va.clone().applyQuaternion(die.quaternion);
-      const vb=f.vb.clone().applyQuaternion(die.quaternion);
-      const vc=f.vc.clone().applyQuaternion(die.quaternion);
-      const cen=f.centroid.clone().applyQuaternion(die.quaternion);
+      // Twist so one vertex is perfectly up (keeps the number upright)
+      const va=face.va.clone().applyQuaternion(die.quaternion);
+      const vb=face.vb.clone().applyQuaternion(die.quaternion);
+      const vc=face.vc.clone().applyQuaternion(die.quaternion);
+      const cen=face.centroid.clone().applyQuaternion(die.quaternion);
       const verts=[va,vb,vc].sort((p,q)=>q.y-p.y); const top=verts[0];
       const dir=new THREE.Vector2(top.x-cen.x, top.y-cen.y);
       const delta=(Math.PI/2) - Math.atan2(dir.y, dir.x);
@@ -181,46 +167,32 @@
     }
 
     function roll(){
-      const seq=[3,14,7,18,11,19,9,15,6,12,17,8,13,10,16,5,4,2,1,20,32];
+      const seq=[3,14,7,18,11,19,9,15,6,12,17,8,13,10,16,5,4,2,1,20,32]; // deterministic, not RNG
       const total=1300; const t0=performance.now();
       (function step(now){
-        const t=Math.min(1,(now-t0)/total); const i=Math.floor(easeInOut(t)*(seq.length-1));
-        draw(seq[i]); tex.needsUpdate=true;
+        const t=Math.min(1,(now-t0)/total);
+        const i=Math.floor(easeInOut(t)*(seq.length-1));
+        drawNum(seq[i]); numTex.needsUpdate=true;
         die.rotation.set(die.rotation.x+0.12, die.rotation.y+0.22, die.rotation.z+0.18);
         edges.rotation.copy(die.rotation);
         t<1?requestAnimationFrame(step):finalize();
       })(performance.now());
     }
-    function finalize(){ draw(32); tex.needsUpdate=true; alignFaceToCamera(face); enterBtn.classList.add("show"); }
 
-    stage.onclick = ()=>{ if(rolled) return; rolled=true; spinning=false; roll(); };
-  }
-</script>
-
-<!-- Loader LAST: tries local file, then two CDNs; if all fail, SVG fallback -->
-<script>
-  (function loadThree(){
-    const urls = [
-      "assets/js/three.min.js?v=4",
-      "/zussy-dungeon/assets/js/three.min.js?v=4",
-      "https://unpkg.com/three@0.158.0/build/three.min.js",
-      "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"
-    ];
-    function tryNext(i){
-      if(i>=urls.length){ showErr("Couldn’t load Three.js. Showing flat backup."); return mountSVG(); }
-      const s=document.createElement("script");
-      s.src=urls[i];
-      s.onload=function(){ /* defer to ensure mountThree is defined */ setTimeout(mountThree,0); };
-      s.onerror=function(){ tryNext(i+1); };
-      document.head.appendChild(s);
+    function finalize(){
+      drawNum(32); numTex.needsUpdate=true;
+      alignFaceToCamera(landingFace);
+      // tiny settle bounce
+      die.position.y = 0.03;
+      const t0=performance.now(); const dur=220;
+      (function bounce(now){
+        const t=Math.min(1,(now-t0)/dur); die.position.y = 0.03*(1 - t);
+        renderer.render(scene,camera); t<1?requestAnimationFrame(bounce):0;
+      })(performance.now());
+      enterBtn.classList.add("show");
     }
-    tryNext(0);
-  })();
-</script>
 
-<noscript>
-  <style>#stage{display:none}</style>
-  <div style="text-align:center;color:#ffb3b3">JavaScript is disabled. Enable it to see the 3D die.</div>
-</noscript>
+    stage.addEventListener("click", ()=>{ if(rolled) return; rolled=true; spinning=false; roll(); });
+  </script>
 </body>
 </html>
