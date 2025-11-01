@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --text:#e8ecf1;
-    --parch-1:#f2e7c8; --parch-2:#e5d6b0; --parch-3:#d3c195; --ink:#2a2418;
+    --parch-1:#f7edd2; --parch-2:#eadcb8; --parch-3:#d7c69c; --ink:#2a2418;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
@@ -33,8 +33,9 @@
   }
   .scene{display:grid;place-items:center;gap:14px}
 
-  /* ---------- ENVELOPE ---------- */
+  /* ---------- ENVELOPE (simplified & symmetric) ---------- */
   .envelope{
+    --seamY: 56%;              /* seam line position */
     position:relative;
     width:min(88vw,760px); aspect-ratio:16/9; border-radius:12px;
     background:linear-gradient(#f7edd2,#eadcb8 60%,#d7c69c);
@@ -45,65 +46,64 @@
       0 18px 50px rgba(0,0,0,.45);
     overflow:hidden;
   }
-  .fold{position:absolute; inset:auto 0 0 0; height:60%; pointer-events:none}
-  .fold.left{
-    left:0; right:50%;
-    background:linear-gradient(180deg,#eadbb5,#d6c398);
-    clip-path:polygon(0 0,100% 0,100% 100%,0 100%,0 0,100% 0,0 100%,0 0,100% 50%);
-  }
-  .fold.right{
-    left:50%; right:0;
-    background:linear-gradient(180deg,#eadbb5,#d6c398);
-    clip-path:polygon(0 0,100% 0,100% 100%,0 100%,100% 0,0 50%,100% 100%);
-  }
-  .fold.bottom{
-    left:12%; right:12%; height:58%;
+  /* bottom triangular flap */
+  .bottom-flap{
+    position:absolute; left:10%; right:10%;
+    top:var(--seamY); bottom:0;
     background:linear-gradient(180deg,#e6d6b2,#d1bf93);
     clip-path:polygon(50% 100%, 0 0, 100% 0);
-    filter:drop-shadow(0 -2px 2px rgba(0,0,0,.10));
+    filter:drop-shadow(0 -2px 2px rgba(0,0,0,.1));
   }
+  /* soft seam under top flap */
+  .seam{
+    position:absolute; left:6%; right:6%;
+    top:calc(var(--seamY) - 6px); height:24px; z-index:1;
+    background:radial-gradient(70% 200% at 50% 0, rgba(0,0,0,.22), transparent 70%);
+    pointer-events:none;
+  }
+  /* top flap that opens */
   .flap{
-    position:absolute; inset:0 0 54% 0; z-index:2;
+    position:absolute; inset:0 0 calc(100% - var(--seamY)) 0; z-index:2;
     background:linear-gradient(#f6ecd1,#ecdfbe 58%,#d9c79e);
     clip-path:polygon(0 0, 100% 0, 50% 100%, 0 0);
-    transform-origin:50% 0; transform:rotateX(0);
+    transform-origin:50% 0; transform:rotateX(0deg);
     box-shadow:inset 0 -22px 28px rgba(0,0,0,.12);
     transition:transform 1s cubic-bezier(.2,.7,.2,1);
     backface-visibility:hidden;
   }
-  .seam{
-    position:absolute; left:8%; right:8%; top:50%;
-    height:22px; transform:translateY(-11px); z-index:1;
-    background:radial-gradient(60% 140% at 50% 0, rgba(0,0,0,.22), transparent 70%);
-    pointer-events:none;
-  }
 
-  /* ---------- WAX SEAL (PNG) ---------- */
+  /* ---------- PNG WAX SEAL (centered) ---------- */
   .seal-btn{
-    --s: clamp(60px, 9vw, 110px);
-    position:absolute; left:50%; top:54%; z-index:3;
-    width:var(--s); height:var(--s); margin:-calc(var(--s)/2);
+    --s: clamp(70px, 10vw, 130px);
+    position:absolute; z-index:3;
+    left:50%; top:var(--seamY);               /* anchor to seam */
+    transform:translate(-50%,-50%);           /* perfect centering */
+    width:var(--s); height:var(--s);
     display:grid; place-items:center;
     padding:0; border:none; background:transparent;
     cursor:pointer; user-select:none;
     transition:transform .16s ease, opacity .25s ease, filter .16s ease;
     filter: drop-shadow(0 10px 22px rgba(0,0,0,.55));
   }
-  .seal-btn:hover{ transform:translateY(-1px) scale(1.02) }
-  .seal-btn:active{ transform:translateY(1px) scale(.985) }
+  .seal-btn:hover{ transform:translate(-50%,-51%) scale(1.02) }
+  .seal-btn:active{ transform:translate(-50%,-49%) scale(.985) }
   .seal-img{ width:100%; height:100%; object-fit:contain; display:block }
 
   /* ---------- SCROLL ---------- */
-  .scroll{width:min(84vw,700px); margin-inline:auto; max-height:0; overflow:hidden;
+  .scroll{
+    width:min(84vw,700px); margin-inline:auto;
+    max-height:0; overflow:hidden;
     transform:translateY(-8px); opacity:0;
     transition:max-height 1.1s cubic-bezier(.2,.7,.2,1), transform .6s ease, opacity .6s ease;
   }
-  .scroll-in{position:relative; color:var(--ink); padding:28px 28px 34px;
-    background:linear-gradient(180deg,var(--parch-1), var(--parch-2) 55%, var(--parch-3));
+  .scroll-in{
+    position:relative; color:var(--ink); padding:28px 28px 34px;
+    background:linear-gradient(180deg,#f2e7c8, #e5d6b0 55%, #d3c195);
     border:1px solid #a58b5a; border-radius:10px;
     box-shadow:inset 0 2px 0 rgba(255,255,255,.35), inset 0 -14px 35px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
   }
-  .scroll-in::before,.scroll-in::after{content:""; position:absolute; left:0; right:0; height:16px;
+  .scroll-in::before,.scroll-in::after{
+    content:""; position:absolute; left:0; right:0; height:16px;
     background:linear-gradient(90deg,#7d5a2f,#b4874b 45%,#d09b5a,#b4874b 55%,#7d5a2f);
     box-shadow:inset 0 0 6px rgba(0,0,0,.45), 0 6px 12px rgba(0,0,0,.25);
   }
@@ -112,37 +112,40 @@
   .quest h2{font:800 clamp(20px,3.6vw,28px)/1.2 "Georgia",serif; margin:0 0 10px}
   .quest p{margin:.45em auto; max-width:62ch; font:500 16px/1.55 "Georgia",serif}
   .cta{margin-top:14px}
-  .btn{display:inline-block; background:#0f1320; border:1px solid #2a334a; color:var(--text); padding:12px 18px; border-radius:12px;
-    text-decoration:none; font-weight:800; text-transform:uppercase; letter-spacing:.08em;
+  .btn{
+    display:inline-block; background:#0f1320; border:1px solid #2a334a; color:var(--text);
+    padding:12px 18px; border-radius:12px; text-decoration:none;
+    font-weight:800; text-transform:uppercase; letter-spacing:.08em;
     box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 20px rgba(124,255,184,.12);
   }
 
-  /* Opened state */
+  /* ---------- OPENED STATE ---------- */
   .opened .flap{ transform:rotateX(-162deg) }
-  .opened .seal-btn{ opacity:0; pointer-events:none; transform:scale(.9) translateY(-6px) }
+  .opened .seal-btn{ opacity:0; pointer-events:none }
   .opened .scroll{ max-height:1200px; transform:translateY(-4px); opacity:1 }
 </style>
 </head>
 <body>
   <div class="wrap">
     <header><h1>Welcome, Lord Zussy</h1></header>
+
     <main>
       <div class="panel">
         <div class="scene">
-          <div class="envelope" id="envelope" aria-expanded="false">
-            <div class="fold left"  aria-hidden="true"></div>
-            <div class="fold right" aria-hidden="true"></div>
-            <div class="fold bottom" aria-hidden="true"></div>
-            <div class="seam" aria-hidden="true"></div>
 
+          <!-- Envelope -->
+          <div class="envelope" id="envelope" aria-expanded="false">
+            <div class="bottom-flap" aria-hidden="true"></div>
+            <div class="seam" aria-hidden="true"></div>
             <div class="flap" aria-hidden="true"></div>
 
             <!-- PNG wax seal -->
             <button id="sealBtn" class="seal-btn" aria-label="Break the wax seal">
-              <img class="seal-img" src="assets/img/seal.png" width="180" height="180" alt="">
+              <img class="seal-img" src="assets/img/seal.png" width="220" height="220" alt="">
             </button>
           </div>
 
+          <!-- Scroll -->
           <div class="scroll" id="scroll" aria-hidden="true">
             <div class="scroll-in">
               <section class="quest" aria-live="polite">
@@ -155,23 +158,31 @@
               </section>
             </div>
           </div>
+
         </div>
       </div>
     </main>
+
     <footer style="height:12px"></footer>
   </div>
 
 <script>
-  const env   = document.getElementById('envelope');
-  const seal  = document.getElementById('sealBtn');
-  const scroll= document.getElementById('scroll');
+  const env    = document.getElementById('envelope');
+  const seal   = document.getElementById('sealBtn');
+  const scroll = document.getElementById('scroll');
 
   function openLetter(){
     if(env.classList.contains('opened')) return;
     env.classList.add('opened');
     env.setAttribute('aria-expanded','true');
     scroll.setAttribute('aria-hidden','false');
+
+    // Ensure the note is visible even on smaller screens
+    setTimeout(()=> {
+      scroll.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 350);
   }
+
   seal.addEventListener('click', openLetter);
   seal.addEventListener('keydown', e=>{
     if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openLetter(); }
