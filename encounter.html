@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Encounter — Skeleton</title>
+<link rel="preload" as="audio" href="assets/audio/enemy.mp3" type="audio/mpeg">
 <style>
   :root{
     --bg:#0a0b10; --text:#e8ecf1; --floor:#0f1320;
@@ -109,6 +110,9 @@
   </div>
 </div>
 
+<!-- Background music -->
+<audio id="bgm" src="assets/audio/enemy.mp3" loop preload="auto" autoplay playsinline></audio>
+
 <script>
 (function(){
   const NEXT_URL = 'cats.html'; // where the door leads
@@ -138,6 +142,24 @@
   const doorEl   = document.getElementById('door');
   const toastEl  = document.getElementById('toast');
   const coffeeEl = document.getElementById('dropCoffee');
+
+  // Try to start audio (autoplay + gesture fallback)
+  const bgm = document.getElementById('bgm');
+  if (bgm){
+    bgm.volume = 0.7;
+    const tryPlay = () => bgm.play().catch(()=>{});
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      tryPlay();
+    } else {
+      window.addEventListener('DOMContentLoaded', tryPlay, { once:true });
+    }
+    const unlock = () => { bgm.play().catch(()=>{}); 
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once:true });
+    window.addEventListener('keydown',   unlock, { once:true });
+  }
 
   // Place elements explicitly
   let player = { x: playerStartX, y: playerStartY, w: playerW, h: playerH };
