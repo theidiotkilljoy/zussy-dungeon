@@ -46,16 +46,16 @@
   #jiji  {left:432px; bottom:112px}
   #artie {left:624px; bottom:112px}
 
-  /* Player sprite (auto-walks) */
+  /* Player (manual control) */
   #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
 
-  /* Floating heart animation (bigger, lower, slightly left) */
+  /* Bigger hearts, start lower & drift further left with a short rise */
   .heart{position:absolute;width:36px;height:36px;object-fit:contain;image-rendering:pixelated;
     pointer-events:none; opacity:0}
   @keyframes floatUp {
-    0% { transform:translate(0px, 0px); opacity:0 }
-    10%{ opacity:1 }
-    100%{ transform:translate(-10px, -32px); opacity:0 } /* drift left 10px, rise 32px */
+    0%   { transform:translate(0px,   0px);  opacity:0 }
+    10%  { opacity:1 }
+    100% { transform:translate(-26px, -22px); opacity:0 }
   }
   .float{ animation: floatUp 1.8s ease-out forwards }
 
@@ -86,7 +86,7 @@
         <img id="jiji"   class="cat" src="assets/img/jiji.png"   alt="Jiji the cat">
         <img id="artie"  class="cat" src="assets/img/artie.png"  alt="Artie the cat">
 
-        <!-- Player -->
+        <!-- Player (manual movement) -->
         <img id="player" src="assets/img/knight2.png" alt="Knight">
 
         <!-- Heart template (cloned per pet) -->
@@ -95,6 +95,7 @@
     </div>
 
     <div class="hud">
+      <span class="pill">WASD</span> or <span class="pill">Arrows</span> to move.
       <span class="pill">You must pet all three to pass.</span>
     </div>
     <div id="log" class="log"></div>
@@ -125,42 +126,25 @@
     { id:'jiji',   msg:'Jiji is grateful for your special nap time cuddles.' },
     { id:'artie',  msg:'Artie wants you to have the best birthday ever and forgives all the torture you\'ve inflicted on him.' }
   ];
-
   const petted = new Set();
 
-  // Player setup (auto-walk)
+  // Player (manual control like the encounter page)
   const groundY = 540 - 112;
   const playerEl = document.getElementById('player');
   const player = { x: 36, y: groundY - 56, w:56, h:56 };
   place(playerEl, player);
 
-  // Cat positions (from CSS)
-  const catEls = cats.map(c => ({...c, el: document.getElementById(c.id)}));
-  function rectFromStyle(el){
-    const s = getComputedStyle(el);
-    const left = parseFloat(s.left || 0);
-    const bottom = parseFloat(s.bottom || 0);
-    const w = parseFloat(s.width), h = parseFloat(s.height);
-    return { x:left, y:(540 - bottom - h), w, h }; // convert bottom to y from top
-  }
-  const catRects = () => catEls.map(c => ({ id:c.id, msg:c.msg, el:c.el, r:rectFromStyle(c.el) }));
+  // Input
+  const keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
+  addEventListener('keydown', e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); } }, {passive:false});
+  addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); } }, {passive:false});
 
-  // Create waypoints: just to the left of each cat, then the door
-  function makeStops(){
-    const rects = catRects();
-    const stops = rects.map(c => ({ type:'cat', id:c.id, x: c.r.x - 10 })); // stop ~10px left of cat
-    // Door stop (just before the door)
-    const s = getComputedStyle(door);
-    const doorLeft = 960 - parseFloat(s.right) - parseFloat(s.width);
-    stops.push({ type:'door', x: doorLeft - 16 });
-    return stops;
+  const speed = 2.4;
+  function movePlayer(dx,dy){
+    player.x = Math.max(0, Math.min(960 - player.w, player.x + dx));
+    player.y = Math.max(0, Math.min(540 - player.h, player.y + dy));
+    place(playerEl, player);
   }
-  let stops = makeStops();
-  window.addEventListener('resize', ()=>{ stops = makeStops(); }); // in case of responsive reflow
-
-  let currentStop = 0;
-  let walking = true;
-  const speed = 1.8;
 
   function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
 
@@ -171,16 +155,16 @@
     logEl.appendChild(line);
   }
 
-  // Spawn a (bigger) heart slightly left & lower over a given cat element
+  // Bigger heart, start lower & further left over a given cat element
   function popHeart(catEl){
     const roomRect = room.getBoundingClientRect();
-    const catRect = catEl.getBoundingClientRect();
+    const catRect  = catEl.getBoundingClientRect();
     const heart = document.getElementById('heart-tmpl').cloneNode(true);
     heart.id = '';
 
-    // Position: lower and a bit left from previous (closer to the cat)
-    const left = (catRect.left - roomRect.left) + catRect.width/2 - 12; // 12px to the left
-    const bottom = (roomRect.bottom - catRect.top) - 6;                 // 6px lower start
+    // Lower and further left than before
+    const left = (catRect.left - roomRect.left) + catRect.width/2 - 18;   // shift ~18px left
+    const bottom = (roomRect.bottom - catRect.top) - 12;                  // start lower (closer to cat)
     heart.style.left = left + 'px';
     heart.style.bottom = bottom + 'px';
 
@@ -189,36 +173,27 @@
     setTimeout(()=> heart.remove(), 2000);
   }
 
-  // Pet handler (only when we're at that cat's stop)
-  function petCat(id, msg){
-    // must be the current stop and not already petted
-    const thisStop = stops[currentStop];
-    if(!thisStop || thisStop.type !== 'cat' || thisStop.id !== id) return;
-    if(petted.has(id)) return;
+  // Pet handler (click cats in any order)
+  function petCat(cat){
+    if(petted.has(cat.id)) return;
+    petted.add(cat.id);
+    const el = document.getElementById(cat.id);
+    popHeart(el);
+    appendMsg(cat.msg);
 
-    const catEl = document.getElementById(id);
-    petted.add(id);
-    popHeart(catEl);
-    appendMsg(msg);
-
-    // proceed to next stop
-    currentStop++;
-    walking = true;
-
-    // If that was the last cat, pulse the door to hint unlock
     if(petted.size === cats.length){
+      // Unlock cue
       door.style.boxShadow = '0 0 0 0 rgba(124,255,184,.6)';
       door.animate([{boxShadow:'0 0 0 0 rgba(124,255,184,.0)'},{boxShadow:'0 0 0 8px rgba(124,255,184,.35)'}],
                    {duration:300, direction:'alternate', iterations:2});
     }
   }
 
-  // Click listeners for cats (in order)
-  catEls.forEach(c=>{
-    c.el.addEventListener('click', ()=> petCat(c.id, c.msg));
+  cats.forEach(c=>{
+    document.getElementById(c.id).addEventListener('click', ()=> petCat(c));
   });
 
-  // Door click (only after all petted)
+  // Door click
   door.addEventListener('click', ()=>{
     if(petted.size === cats.length){
       window.location.href = NEXT_URL;
@@ -230,21 +205,14 @@
     }
   });
 
-  // Main loop: auto-walk left→right, stop at each cat until petted, then continue
+  // Game loop for player control
   function tick(){
-    const stop = stops[currentStop];
-    if(walking && stop){
-      if(player.x < stop.x){
-        player.x += speed;
-        if(player.x > stop.x) player.x = stop.x;
-        place(playerEl, player);
-      }else{
-        // reached stop: if it's a cat, wait; if it's door and all petted, nudge forward
-        walking = false;
-
-        // If it's the door and we're done, idle here; player clicks door to leave
-      }
-    }
+    let dx=0, dy=0;
+    if(keys.w || keys.ArrowUp)    dy -= speed;
+    if(keys.s || keys.ArrowDown)  dy += speed;
+    if(keys.a || keys.ArrowLeft)  dx -= speed;
+    if(keys.d || keys.ArrowRight) dx += speed;
+    if(dx || dy) movePlayer(dx,dy);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
