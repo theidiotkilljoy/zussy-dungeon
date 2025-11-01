@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Finale — Birthday Room</title>
-<link rel="preload" as="audio" href="assets/audio/fallen.mp3" type="audio/mpeg">
 <style>
   :root{
     --text:#e8ecf1; --bg:#0a0b10;
@@ -91,16 +90,16 @@
   @keyframes blackout { 0%{opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{opacity:0} }
   .flash { animation:blackout .55s ease forwards }
 
-  /* --- Soul-burst transition pieces (centered on Death) --- */
+  /* --- Centered soul-burst transition --- */
   /* Quick white flash */
   #flashWhite{ position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:35; }
   @keyframes flashQuick { 0%{opacity:0} 25%{opacity:1} 100%{opacity:0} }
-  .flashQuick { animation: flashQuick .12s ease-out forwards; }
+  .flashQuick { animation: flashQuick .14s ease-out forwards; }
 
-  /* Radial burst anchored at Death */
+  /* Radial burst centered in the scene and scaled much larger */
   #soul{
     position:absolute; left:50%; top:50%;
-    width:64px; height:64px; pointer-events:none; z-index:34; opacity:0;
+    width:96px; height:96px; pointer-events:none; z-index:34; opacity:0;
     transform:translate(-50%,-50%) scale(0.05);
     background:
       radial-gradient(circle,
@@ -108,15 +107,15 @@
         rgba(255,255,255,.65) 22% 36%,
         rgba(255,255,255,.18) 36% 60%,
         rgba(255,255,255,0) 60% 100%);
-    filter: blur(0.5px);
+    filter: blur(0.6px);
     border-radius:50%;
   }
   @keyframes soulBurst {
     0%   { opacity:0; transform:translate(-50%,-50%) scale(0.05) }
     5%   { opacity:1; }
-    100% { opacity:0; transform:translate(-50%,-50%) scale(8) }
+    100% { opacity:0; transform:translate(-50%,-50%) scale(18) } /* much larger */
   }
-  .burst { animation: soulBurst .55s ease-out forwards; }
+  .burst { animation: soulBurst .65s ease-out forwards; }
 </style>
 </head>
 <body>
@@ -146,7 +145,7 @@
 </div>
 
 <!-- Background music -->
-<audio id="bgm" src="assets/audio/fallen.mp3" loop preload="auto"></audio>
+<audio id="bgm" src="assets/audio/fallen.mp3" loop preload="auto" autoplay playsinline></audio>
 
 <script>
 (function(){
@@ -169,13 +168,21 @@
   const cake  = document.getElementById('cakemaia');
   const knife = document.getElementById('knifeMaia');
 
-  /* BGM: start on first gesture */
+  /* ---- Audio: try to autoplay immediately; fall back to first user gesture ---- */
   const bgm = document.getElementById('bgm');
   if (bgm){
-    bgm.volume = 0.45;
+    bgm.volume = 0.65;
+    // Try immediately on load
+    const tryPlay = () => { bgm.play().catch(()=>{}); };
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      tryPlay();
+    } else {
+      window.addEventListener('DOMContentLoaded', tryPlay, { once:true });
+    }
+    // Fallback on first gesture if blocked
     const boot = () => { bgm.play().catch(()=>{}); window.removeEventListener('pointerdown', boot); window.removeEventListener('keydown', boot); };
-    window.addEventListener('pointerdown', boot, {once:true});
-    window.addEventListener('keydown', boot, {once:true});
+    window.addEventListener('pointerdown', boot, { once:true });
+    window.addEventListener('keydown', boot, { once:true });
   }
 
   const DEATH_LINES = [
@@ -214,7 +221,7 @@
             msg.textContent = `Death: ${DEATH_LINES[step]}`;
           } else {
             // STINGER: overlay knifemaia slightly to the right of Death,
-            // then nudge up/left by half of knife's own size for alignment
+            // then offset up/left by half of knife's own size
             phase = 'stinger';
             const deathEl = document.getElementById('death');
             const rDeath = deathEl.getBoundingClientRect();
@@ -224,7 +231,6 @@
             knife.style.left = (rDeath.left - rScene.left + 70) + 'px';
             knife.style.top  = (rDeath.top  - rScene.top) + 'px';
 
-            // after it's rendered, offset by half its own dimensions
             requestAnimationFrame(()=>{
               const rKnife = knife.getBoundingClientRect();
               const x = (rDeath.left - rScene.left) + 70 - (rKnife.width  / 2);
@@ -236,19 +242,19 @@
             msg.textContent = "Maia: Zussy's done when I say he's done!";
           }
         } else if (phase === 'stinger') {
-          // === Radial Soul-Burst Transition (centered on Death) ===
-          const deathEl = document.getElementById('death');
-          const rDeath = deathEl.getBoundingClientRect();
+          // === Centered Soul-Burst Transition ===
+          // Center the burst in the middle of the scene (not at Death)
           const rScene = scene.getBoundingClientRect();
-          const cx = rDeath.left - rScene.left + rDeath.width/2;
-          const cy = rDeath.top  - rScene.top  + rDeath.height/2;
-
+          const cx = rScene.width / 2;
+          const cy = rScene.height / 2;
           soul.style.left = cx + 'px';
           soul.style.top  = cy + 'px';
-          soul.classList.remove('burst');
-          void soul.offsetWidth;
+
+          soul.classList.remove('burst');  // reset if re-triggered
+          void soul.offsetWidth;           // reflow
           soul.classList.add('burst');
 
+          // quick white flash across the whole scene
           flashWhite.classList.remove('flashQuick');
           void flashWhite.offsetWidth;
           flashWhite.classList.add('flashQuick');
