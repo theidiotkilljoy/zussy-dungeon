@@ -44,7 +44,7 @@
     font-weight:800; letter-spacing:.2px;
     backdrop-filter: blur(2px);
     user-select:none;
-    pointer-events:none;     /* <-- key: do not block cake clicks */
+    pointer-events:none;     /* don't block cake clicks */
     z-index:20;
   }
   #message.clickable{
@@ -69,6 +69,17 @@
     filter: drop-shadow(0 3px 6px rgba(0,0,0,.45));
   }
 
+  /* Per-sprite adjustments */
+  /* Artie up and left by half his dimensions (192px => 96px) */
+  #artie{
+    position:relative;
+    top:-96px;
+    left:-96px;
+  }
+  /* During the party lineup, shift Zussy & Maia left by half their widths */
+  .row.party #zussy    { transform: translateX(-50%); }
+  .row.party #cakemaia { transform: translateX(-50%); }
+
   /* Flash to dark */
   #flash{ position:absolute; inset:0; background:#000; opacity:0; pointer-events:none; z-index:30; }
   @keyframes blackout { 0%{opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{opacity:0} }
@@ -81,8 +92,8 @@
     <div id="scene" aria-label="Birthday celebration room">
       <div id="message">Happy Birthday Zachary! Make a wish and blow out your candle</div>
 
-      <!-- Party cast (tight spacing): jiji, minnie, zussy2, cakemaia, artie -->
-      <div id="row" class="row tight">
+      <!-- Party cast (tight spacing) + 'party' behavior for shifted Zussy/Maia -->
+      <div id="row" class="row tight party">
         <img id="jiji"      class="sprite" src="assets/img/jiji.png"      alt="Jiji">
         <img id="minnie"    class="sprite" src="assets/img/minnie.png"    alt="Minnie">
         <img id="zussy"     class="sprite" src="assets/img/zussy2.png"    alt="Zachary">
@@ -129,7 +140,7 @@
       scene.style.backgroundImage = 'url("assets/img/darkroom.png")';
 
       // Switch to death scene; regular spacing for two sprites
-      row.classList.remove('tight');
+      row.classList.remove('tight','party');   // remove party shifts & tight spacing
       row.innerHTML = `
         <img id="zussy" class="sprite" src="assets/img/zussy2.png" alt="Zachary">
         <img id="death" class="sprite" src="assets/img/death.png"  alt="Death">
