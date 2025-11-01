@@ -36,7 +36,7 @@
     mix-blend-mode:multiply; opacity:.45;
   }
 
-  /* Top message (disabled clicks during party so cake is clickable) */
+  /* Top message */
   #message{
     position:absolute; left:12px; right:12px; top:12px;
     padding:10px 14px; text-align:center;
@@ -44,11 +44,11 @@
     font-weight:800; letter-spacing:.2px;
     backdrop-filter: blur(2px);
     user-select:none;
-    pointer-events:none;     /* don't block cake clicks */
+    pointer-events:none;     /* party: don't block cake clicks */
     z-index:20;
   }
   #message.clickable{
-    pointer-events:auto;     /* enabled in Death scene */
+    pointer-events:auto;     /* enabled for Death + stinger */
     cursor:pointer;
   }
 
@@ -59,26 +59,33 @@
     gap:26px; pointer-events:none;
     z-index:15;
   }
-  /* Almost no spacing pre-click */
-  .row.tight{ gap:0; }
+  .row.tight{ gap:0; }                  /* almost no spacing before cake */
 
   .sprite{
-    height:192px;                   /* +60% size */
+    height:192px;                       /* +60% size */
     width:auto; image-rendering:pixelated; display:block;
     pointer-events:auto;
     filter: drop-shadow(0 3px 6px rgba(0,0,0,.45));
   }
 
   /* Per-sprite adjustments */
-  /* Artie up and left by half his dimensions (192px => 96px) */
+  /* Artie up and left by ~half his size */
   #artie{
     position:relative;
     top:-96px;
     left:-80px;
   }
-  /* During the party lineup, shift Zussy & Maia left by half their widths */
+  /* In party lineup, nudge Zussy & Maia left by half their width */
   .row.party #zussy    { transform: translateX(-50%); }
   .row.party #cakemaia { transform: translateX(-50%); }
+
+  /* Knife-Maia overlay for the stinger */
+  #knifeMaia{
+    position:absolute; left:0; top:0;
+    height:192px; width:auto; image-rendering:pixelated;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,.45));
+    z-index:25; display:none; pointer-events:none;
+  }
 
   /* Flash to dark */
   #flash{ position:absolute; inset:0; background:#000; opacity:0; pointer-events:none; z-index:30; }
@@ -100,6 +107,9 @@
         <img id="cakemaia"  class="sprite" src="assets/img/cakemaia.png"  alt="Maia with cake">
         <img id="artie"     class="sprite" src="assets/img/artie.png"     alt="Artie">
       </div>
+
+      <!-- Stinger overlay (hidden until used) -->
+      <img id="knifeMaia" src="assets/img/knifemaia.png" alt="Maia strikes">
 
       <div id="flash"></div>
     </div>
@@ -123,14 +133,18 @@
   const row   = document.getElementById('row');
   const flash = document.getElementById('flash');
   const cake  = document.getElementById('cakemaia');
+  const knife = document.getElementById('knifeMaia');
 
-  const DIALOG = [
+  /* Death dialog, then Maia stinger, then back to party */
+  const DEATH_LINES = [
     "Oh, don't worry",
     "I'm not here for you *just* yet",
     "But live every day thoughtfully, because you never know when..."
   ];
-  let step = 0, phase = 'party';
+  let step = 0;
+  let phase = 'party'; // 'party' -> 'death' -> 'stinger' -> 'final'
 
+  /* Party: click cake to go dark */
   cake.addEventListener('click', () => {
     if (phase !== 'party') return;
 
@@ -140,29 +154,52 @@
       scene.style.backgroundImage = 'url("assets/img/darkroom.png")';
 
       // Switch to death scene; regular spacing for two sprites
-      row.classList.remove('tight','party');   // remove party shifts & tight spacing
+      row.classList.remove('tight','party');
       row.innerHTML = `
         <img id="zussy" class="sprite" src="assets/img/zussy2.png" alt="Zachary">
         <img id="death" class="sprite" src="assets/img/death.png"  alt="Death">
       `;
 
-      // Make message interactive only now
       phase = 'death';
       step = 0;
-      msg.textContent = `Death: ${DIALOG[step]}`;
+      msg.textContent = `Death: ${DEATH_LINES[step]}`;
       msg.classList.add('clickable');
 
-      const advance = () => {
-        if (phase !== 'death') return;
-        step++;
-        if (step < DIALOG.length) {
-          msg.textContent = `Death: ${DIALOG[step]}`;
-        } else {
-          phase = 'done';
-          window.location.href = 'theend.html';
+      // click advances through Death lines, then triggers stinger
+      msg.onclick = () => {
+        if (phase === 'death') {
+          step++;
+          if (step < DEATH_LINES.length) {
+            msg.textContent = `Death: ${DEATH_LINES[step]}`;
+          } else {
+            // STINGER: overlay knifemaia slightly to the right of Death
+            phase = 'stinger';
+            const deathEl = document.getElementById('death');
+            const rDeath = deathEl.getBoundingClientRect();
+            const rScene = scene.getBoundingClientRect();
+            knife.style.left = (rDeath.left - rScene.left + 70) + 'px';
+            knife.style.top  = (rDeath.top  - rScene.top)  + 'px';
+            knife.style.display = 'block';
+            msg.textContent = "Maia: Zussy's done when I say he's done!";
+          }
+        } else if (phase === 'stinger') {
+          // Return to the original party lineup & final message
+          knife.style.display = 'none';
+          scene.style.backgroundImage = 'url("assets/img/room.png")';
+          row.className = 'row tight party';
+          row.innerHTML = `
+            <img id="jiji"      class="sprite" src="assets/img/jiji.png"      alt="Jiji">
+            <img id="minnie"    class="sprite" src="assets/img/minnie.png"    alt="Minnie">
+            <img id="zussy"     class="sprite" src="assets/img/zussy2.png"    alt="Zachary">
+            <img id="cakemaia"  class="sprite" src="assets/img/cakemaia.png"  alt="Maia with cake">
+            <img id="artie"     class="sprite" src="assets/img/artie.png"     alt="Artie">
+          `;
+          msg.textContent = "Happy Birthday, I love you forever perfect boyfriend";
+          msg.classList.remove('clickable');
+          msg.onclick = null;
+          phase = 'final';
         }
       };
-      msg.addEventListener('click', advance, { once:false });
 
     }, 110);
 
