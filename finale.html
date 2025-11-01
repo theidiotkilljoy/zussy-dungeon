@@ -172,14 +172,27 @@
           if (step < DEATH_LINES.length) {
             msg.textContent = `Death: ${DEATH_LINES[step]}`;
           } else {
-            // STINGER: overlay knifemaia slightly to the right of Death
+            // STINGER: overlay knifemaia slightly to the right of Death,
+            // then nudge up/left by half of knife's own size for alignment
             phase = 'stinger';
             const deathEl = document.getElementById('death');
             const rDeath = deathEl.getBoundingClientRect();
             const rScene = scene.getBoundingClientRect();
-            knife.style.left = (rDeath.left - rScene.left + 70) + 'px';
-            knife.style.top  = (rDeath.top  - rScene.top)  + 'px';
+
             knife.style.display = 'block';
+            // first place roughly to the right of death
+            knife.style.left = (rDeath.left - rScene.left + 70) + 'px';
+            knife.style.top  = (rDeath.top  - rScene.top) + 'px';
+
+            // after it's rendered, offset by half its own dimensions
+            requestAnimationFrame(()=>{
+              const rKnife = knife.getBoundingClientRect();
+              const x = (rDeath.left - rScene.left) + 70 - (rKnife.width  / 2);
+              const y = (rDeath.top  - rScene.top)          - (rKnife.height / 2);
+              knife.style.left = x + 'px';
+              knife.style.top  = y + 'px';
+            });
+
             msg.textContent = "Maia: Zussy's done when I say he's done!";
           }
         } else if (phase === 'stinger') {
