@@ -19,16 +19,12 @@
     color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
   }
 
-  /* Header + stage + HUD rows */
   .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
-
   header{display:grid;place-items:center;padding-top:8px}
   h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
-
   .stage{display:grid;place-items:center;padding:8px 12px}
   .scaleBox{transform-origin:top center}
 
-  /* Fixed logical playfield */
   #arena{position:relative;width:960px;height:540px;background:var(--floor);
     border:1px solid #222a3b;border-radius:14px;overflow:hidden}
   #arena::after{content:"";position:absolute;inset:0;pointer-events:none;
@@ -38,25 +34,20 @@
   .ground{position:absolute;left:0;right:0;bottom:112px;height:4px;
     background:linear-gradient(90deg,#1a2030,#2a334a 50%,#1a2030);opacity:.35}
 
-  /* Door on the right (keep these numbers in sync with JS constants below) */
   .door{position:absolute;width:40px;height:84px;right:26px;bottom:112px;
     border:2px solid #313a52;border-radius:8px;background:#131824}
   .door::after{content:"";position:absolute;width:6px;height:6px;right:8px;top:50%;
     transform:translateY(-50%);background:#9aa3b2;border-radius:50%}
 
-  /* Player & enemy */
   #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
   #enemyWrap{position:absolute;width:68px;height:68px;cursor:pointer}
   #enemy{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block}
 
-  /* Drop item (coffee) */
   #dropCoffee{
     position:absolute; display:none; image-rendering:pixelated; pointer-events:none;
-    z-index:5; /* above ground and enemy */
-    transition: left .35s ease-in, top .35s ease-in, transform .35s ease-in;
+    z-index:5; transition: left .35s ease-in, top .35s ease-in, transform .35s ease-in;
   }
 
-  /* Animations */
   @keyframes startleY { 0%,100%{transform:translateY(0)} 20%{transform:translateY(-8px)} 40%{transform:translateY(6px)} 60%{transform:translateY(-5px)} 80%{transform:translateY(3px)} }
   @keyframes paceX    { from{transform:translateX(-6px)} to{transform:translateX(6px)} }
   @keyframes shakeY   { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-2px)} }
@@ -84,20 +75,15 @@
       <div id="arena" aria-label="Skeleton encounter battlefield">
         <div class="ground" aria-hidden="true"></div>
 
-        <!-- Door -->
         <div id="door" class="door" title="Exit"></div>
 
-        <!-- Player -->
         <img id="player" src="assets/img/zussy2.png" alt="Knight">
 
-        <!-- Enemy -->
         <div id="enemyWrap" class="startle">
           <img id="enemy" src="assets/img/skeleton.png" alt="Skeleton">
         </div>
 
-        <!-- Loot drop -->
         <img id="dropCoffee" src="assets/img/coffee.png" alt="Magic dark elixir">
-
         <div id="toast" class="toast hidden"></div>
       </div>
     </div>
@@ -110,30 +96,56 @@
   </div>
 </div>
 
-<!-- Background music -->
-<audio id="bgm" src="assets/audio/enemy.mp3" loop preload="auto" autoplay playsinline></audio>
+<!-- Background music: start muted to satisfy autoplay, then unmute on first interaction -->
+<audio id="bgm" src="assets/audio/enemy.mp3" loop preload="auto" autoplay playsinline muted></audio>
 
 <script>
 (function(){
-  const NEXT_URL = 'cats.html'; // where the door leads
+  const NEXT_URL = 'cats.html';
 
-  // Logical stage
+  // ---- Audio autoplay/unmute helpers ----
+  const bgm = document.getElementById('bgm');
+  if (bgm){
+    bgm.volume = 0.7;
+    bgm.muted = true; // ensure policy-friendly start
+    const tryPlay = () => bgm.play().catch(()=>{});
+    const unmute = () => { bgm.muted = false; tryPlay(); removeUnlockers(); };
+    const removeUnlockers = () => {
+      ['pointerdown','keydown','touchstart','click','mousedown'].forEach(ev =>
+        window.removeEventListener(ev, unmute)
+      );
+    };
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      tryPlay();
+    } else {
+      window.addEventListener('DOMContentLoaded', tryPlay, { once:true });
+    }
+
+    // Unmute on first interaction (covers desktop + mobile)
+    ['pointerdown','keydown','touchstart','click','mousedown'].forEach(ev =>
+      window.addEventListener(ev, unmute, { once:true })
+    );
+
+    // If tab becomes visible later, re-try play
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) tryPlay();
+    });
+  }
+
+  // ---- Game code (unchanged) ----
   const W = 960, H = 540;
   const GROUND_BOTTOM = 112;
   const GROUND_Y = H - GROUND_BOTTOM;
 
-  // Door constants mirrored from CSS
   const DOOR_W = 40, DOOR_H = 84, DOOR_RIGHT = 26, DOOR_BOTTOM = GROUND_BOTTOM;
 
-  // Entities (fixed sizes mirrored from CSS)
   const enemyW = 68, enemyH = 68;
   const playerW = 56, playerH = 56;
 
-  // Positions
-  const enemyX  = 700, enemyY = GROUND_Y - enemyH; // faces left
+  const enemyX  = 700, enemyY = GROUND_Y - enemyH;
   const playerStartX = 36, playerStartY = GROUND_Y - playerH;
 
-  // DOM
   const scaleBox = document.getElementById('scale');
   const playerEl = document.getElementById('player');
   const enemyWrap= document.getElementById('enemyWrap');
@@ -143,40 +155,18 @@
   const toastEl  = document.getElementById('toast');
   const coffeeEl = document.getElementById('dropCoffee');
 
-  // Try to start audio (autoplay + gesture fallback)
-  const bgm = document.getElementById('bgm');
-  if (bgm){
-    bgm.volume = 0.7;
-    const tryPlay = () => bgm.play().catch(()=>{});
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      tryPlay();
-    } else {
-      window.addEventListener('DOMContentLoaded', tryPlay, { once:true });
-    }
-    const unlock = () => { bgm.play().catch(()=>{}); 
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-    };
-    window.addEventListener('pointerdown', unlock, { once:true });
-    window.addEventListener('keydown',   unlock, { once:true });
-  }
-
-  // Place elements explicitly
   let player = { x: playerStartX, y: playerStartY, w: playerW, h: playerH };
   place(playerEl, player);
   enemyWrap.style.left = enemyX + 'px';
   enemyWrap.style.top  = enemyY + 'px';
 
-  // State
   let enemyAlive = true;
   let hitsLeft = 5;
   hitsEl.textContent = hitsLeft;
 
-  // Coffee drop state
-  const coffeeSize = Math.round(enemyH * 0.25);   // ~1/4 skeleton
+  const coffeeSize = Math.round(enemyH * 0.25);
   let coffee = { active:false, sucked:false, x:0, y:0, w:coffeeSize, h:coffeeSize, vx:0, vy:0, bounces:0 };
 
-  // After startle, begin pacing
   enemyWrap.addEventListener('animationend', (e)=>{
     if(e.animationName === 'startleY'){
       enemyWrap.classList.remove('startle');
@@ -184,7 +174,6 @@
     }
   });
 
-  // Responsive scale
   function fit(){
     const maxW = Math.min(window.innerWidth*0.96, 1200);
     const maxH = window.innerHeight - 120;
@@ -193,12 +182,10 @@
   }
   window.addEventListener('resize', fit); fit();
 
-  // Input
   const keys = {w:false,a:false,s:false,d:false,ArrowUp:false,ArrowLeft:false,ArrowDown:false,ArrowRight:false};
   addEventListener('keydown', e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=true; e.preventDefault(); }},{passive:false});
   addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); }},{passive:false});
 
-  // Helpers
   const speed = 2.8;
   function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
   function rect(x,y,w,h){ return {x,y,w,h}; }
@@ -220,16 +207,13 @@
     e.y = Math.max(0, Math.min(e.y, bounds.h - e.h));
   }
 
-  // Movement with collision against enemy while alive
   function movePlayer(dx, dy){
-    // X
     player.x += dx;
     clampToBounds(player);
     if(enemyAlive && intersects(player, enemyRect())){
       if(dx > 0) player.x = enemyRect().x - player.w;
       else if(dx < 0) player.x = enemyRect().x + enemyRect().w;
     }
-    // Y
     player.y += dy;
     clampToBounds(player);
     if(enemyAlive && intersects(player, enemyRect())){
@@ -239,7 +223,6 @@
     place(playerEl, player);
   }
 
-  // Toast (supports sticky)
   let toastTimer;
   function toast(msg, {sticky=false, cls=''} = {}){
     toastEl.className = `toast ${cls}`.trim();
@@ -251,7 +234,6 @@
     }
   }
 
-  // Combat
   let cooling = false;
   function canHit(){ return rectDistance(player, enemyRect()) <= 4; }
   function hitEnemy(){
@@ -274,12 +256,9 @@
         setTimeout(()=>{
           enemyWrap.classList.remove('shake');
           enemyWrap.classList.add('dead');
-          enemyAlive = false;                   // no longer blocks movement
+          enemyAlive = false;
           toast('The skeleton is defeated!', {sticky:true, cls:'ok'});
-
-          // Spawn loot right as the corpse falls
           spawnCoffeeDrop();
-
           cooling = false;
         }, 460);
       }
@@ -288,13 +267,11 @@
   enemyWrap.addEventListener('click', hitEnemy);
   enemyImg.addEventListener('click', hitEnemy);
 
-  // ----- Coffee drop logic -----
   function spawnCoffeeDrop(){
-    // Starting position: near the skeleton center
     coffee.x = Math.round(enemyX + enemyW/2 - coffee.w/2);
     coffee.y = Math.round(enemyY + enemyH*0.25);
-    coffee.vx = 2.6;           // to the right
-    coffee.vy = -6.2;          // upward pop
+    coffee.vx = 2.6;
+    coffee.vy = -6.2;
     coffee.bounces = 0;
     coffee.active = true;
     coffee.sucked = false;
@@ -310,24 +287,18 @@
   function startSuction(){
     if(coffee.sucked) return;
     coffee.sucked = true;
-
-    // Target: player's center
     const tx = player.x + player.w/2 - coffee.w/2;
     const ty = player.y + player.h/2 - coffee.h/2;
-
-    // Use CSS transition to fly + shrink
     coffeeEl.style.transition = 'left .35s ease-in, top .35s ease-in, transform .35s ease-in';
     coffeeEl.style.left = tx + 'px';
     coffeeEl.style.top  = ty + 'px';
     coffeeEl.style.transform = 'scale(0.15)';
-
     coffeeEl.addEventListener('transitionend', ()=>{
       coffeeEl.style.display = 'none';
       toast('A magic dark elixir has been added to your inventory', {sticky:true, cls:'ok'});
     }, {once:true});
   }
 
-  // Main loop
   function tick(){
     let dx=0, dy=0;
     if(keys.w || keys.ArrowUp) dy -= speed;
@@ -337,32 +308,25 @@
 
     if(dx || dy) movePlayer(dx, dy);
 
-    // Coffee physics (simple)
     if(coffee.active && !coffee.sucked){
-      // gravity
       coffee.vy += 0.35;
       coffee.x += coffee.vx;
       coffee.y += coffee.vy;
 
-      // floor collision/bounce
       const floorY = GROUND_Y - coffee.h;
       if(coffee.y >= floorY && coffee.vy > 0){
         coffee.y = floorY;
-        coffee.vy = -Math.abs(coffee.vy) * 0.55; // bounce up
-        coffee.vx *= 0.8;                        // friction
+        coffee.vy = -Math.abs(coffee.vy) * 0.55;
+        coffee.vx *= 0.8;
         coffee.bounces++;
-        // After first bounce, schedule suction shortly after a brief settle
         if(coffee.bounces === 1){
           setTimeout(startSuction, 300);
         }
       }
-
-      // place
       coffeeEl.style.left = Math.round(coffee.x) + 'px';
       coffeeEl.style.top  = Math.round(coffee.y) + 'px';
     }
 
-    // Exit if enemy dead and player overlaps door
     if(!enemyAlive && intersects(player, doorRect())){
       window.location.href = NEXT_URL;
       return;
@@ -371,7 +335,6 @@
   }
   requestAnimationFrame(tick);
 
-  // Utilities
   function doorRect(){
     const left = W - DOOR_RIGHT - DOOR_W;
     const top  = H - DOOR_BOTTOM - DOOR_H;
