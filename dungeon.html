@@ -85,7 +85,7 @@
         <img id="chest" src="assets/img/chest.png" alt="Treasure chest">
 
         <!-- Player (starts as knight without sword) -->
-        <img id="player" src="assets/img/knight1.png" alt="Knight">
+        <img id="player" src="assets/img/zussy1.png" alt="Knight">
         
         <!-- Toast -->
         <div id="toast" class="toast" style="display:none"></div>
@@ -205,7 +205,7 @@
       if(!chestOpened && intersects(player, chestPos)){
         chestOpened = true;
         chestEl.src = 'assets/img/chest.gif';
-        playerEl.src = 'assets/img/knight2.png'; // knight gets sword
+        playerEl.src = 'assets/img/zussy2.png'; // knight gets sword
         toast('You equip a sword!', 'ok');
       }
 
