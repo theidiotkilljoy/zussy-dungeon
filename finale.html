@@ -76,4 +76,90 @@
 </style>
 </head>
 <body>
-<div class="
+<div class="stage">
+  <div id="scale">
+    <div id="scene" aria-label="Birthday celebration room">
+      <div id="message">Happy Birthday Zachary! Make a wish and blow out your candle</div>
+
+      <!-- Party cast (tight spacing): jiji, minnie, zussy2, cakemaia, artie -->
+      <div id="row" class="row tight">
+        <img id="jiji"      class="sprite" src="assets/img/jiji.png"      alt="Jiji">
+        <img id="minnie"    class="sprite" src="assets/img/minnie.png"    alt="Minnie">
+        <img id="zussy"     class="sprite" src="assets/img/zussy2.png"    alt="Zachary">
+        <img id="cakemaia"  class="sprite" src="assets/img/cakemaia.png"  alt="Maia with cake">
+        <img id="artie"     class="sprite" src="assets/img/artie.png"     alt="Artie">
+      </div>
+
+      <div id="flash"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const W=960, H=540;
+  const scaleBox = document.getElementById('scale');
+  function fit(){
+    const maxW = Math.min(window.innerWidth*0.96, 1200);
+    const maxH = window.innerHeight*0.94;
+    const s = Math.min(maxW/W, maxH/H);
+    scaleBox.style.transform = `scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  const scene = document.getElementById('scene');
+  const msg   = document.getElementById('message');
+  const row   = document.getElementById('row');
+  const flash = document.getElementById('flash');
+  const cake  = document.getElementById('cakemaia');
+
+  const DIALOG = [
+    "Oh, don't worry",
+    "I'm not here for you *just* yet",
+    "But live every day thoughtfully, because you never know when..."
+  ];
+  let step = 0, phase = 'party';
+
+  cake.addEventListener('click', () => {
+    if (phase !== 'party') return;
+
+    flash.classList.add('flash');
+
+    setTimeout(()=>{
+      scene.style.backgroundImage = 'url("assets/img/darkroom.png")';
+
+      // Switch to death scene; regular spacing for two sprites
+      row.classList.remove('tight');
+      row.innerHTML = `
+        <img id="zussy" class="sprite" src="assets/img/zussy2.png" alt="Zachary">
+        <img id="death" class="sprite" src="assets/img/death.png"  alt="Death">
+      `;
+
+      // Make message interactive only now
+      phase = 'death';
+      step = 0;
+      msg.textContent = `Death: ${DIALOG[step]}`;
+      msg.classList.add('clickable');
+
+      const advance = () => {
+        if (phase !== 'death') return;
+        step++;
+        if (step < DIALOG.length) {
+          msg.textContent = `Death: ${DIALOG[step]}`;
+        } else {
+          phase = 'done';
+          window.location.href = 'theend.html';
+        }
+      };
+      msg.addEventListener('click', advance, { once:false });
+
+    }, 110);
+
+    flash.addEventListener('animationend', () => {
+      flash.classList.remove('flash');
+    }, { once:true });
+  }, { passive:true });
+})();
+</script>
+</body>
+</html>
