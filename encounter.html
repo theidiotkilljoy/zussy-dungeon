@@ -21,7 +21,6 @@
   /* Header + stage + HUD rows */
   .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
 
-  /* Title (matches cats page vibe) */
   header{display:grid;place-items:center;padding-top:8px}
   h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(22px,3.8vw,32px)}
 
@@ -48,6 +47,13 @@
   #player{position:absolute;width:56px;height:56px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
   #enemyWrap{position:absolute;width:68px;height:68px;cursor:pointer}
   #enemy{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block}
+
+  /* Drop item (coffee) */
+  #dropCoffee{
+    position:absolute; display:none; image-rendering:pixelated; pointer-events:none;
+    z-index:5; /* above ground and enemy */
+    transition: left .35s ease-in, top .35s ease-in, transform .35s ease-in;
+  }
 
   /* Animations */
   @keyframes startleY { 0%,100%{transform:translateY(0)} 20%{transform:translateY(-8px)} 40%{transform:translateY(6px)} 60%{transform:translateY(-5px)} 80%{transform:translateY(3px)} }
@@ -88,6 +94,9 @@
           <img id="enemy" src="assets/img/skeleton.png" alt="Skeleton">
         </div>
 
+        <!-- Loot drop -->
+        <img id="dropCoffee" src="assets/img/coffee.png" alt="Magic dark elixir">
+
         <div id="toast" class="toast hidden"></div>
       </div>
     </div>
@@ -107,29 +116,30 @@
   // Logical stage
   const W = 960, H = 540;
   const GROUND_BOTTOM = 112;
+  const GROUND_Y = H - GROUND_BOTTOM;
 
-  // Door constants mirrored from CSS (so we don't parse CSS at runtime)
+  // Door constants mirrored from CSS
   const DOOR_W = 40, DOOR_H = 84, DOOR_RIGHT = 26, DOOR_BOTTOM = GROUND_BOTTOM;
 
   // Entities (fixed sizes mirrored from CSS)
   const enemyW = 68, enemyH = 68;
   const playerW = 56, playerH = 56;
 
-  // Positions (logical coordinates)
-  const enemyX  = 700, enemyY = H - GROUND_BOTTOM - enemyH; // faces left
-  const playerStartX = 36, playerStartY = H - GROUND_BOTTOM - playerH;
+  // Positions
+  const enemyX  = 700, enemyY = GROUND_Y - enemyH; // faces left
+  const playerStartX = 36, playerStartY = GROUND_Y - playerH;
 
   // DOM
   const scaleBox = document.getElementById('scale');
-  const arena    = document.getElementById('arena');
   const playerEl = document.getElementById('player');
   const enemyWrap= document.getElementById('enemyWrap');
   const enemyImg = document.getElementById('enemy');
   const hitsEl   = document.getElementById('hits').querySelector('strong');
   const doorEl   = document.getElementById('door');
   const toastEl  = document.getElementById('toast');
+  const coffeeEl = document.getElementById('dropCoffee');
 
-  // Place elements explicitly (so they never default to 0,0)
+  // Place elements explicitly
   let player = { x: playerStartX, y: playerStartY, w: playerW, h: playerH };
   place(playerEl, player);
   enemyWrap.style.left = enemyX + 'px';
@@ -139,6 +149,10 @@
   let enemyAlive = true;
   let hitsLeft = 5;
   hitsEl.textContent = hitsLeft;
+
+  // Coffee drop state
+  const coffeeSize = Math.round(enemyH * 0.25);   // ~1/4 skeleton
+  let coffee = { active:false, sucked:false, x:0, y:0, w:coffeeSize, h:coffeeSize, vx:0, vy:0, bounces:0 };
 
   // After startle, begin pacing
   enemyWrap.addEventListener('animationend', (e)=>{
@@ -172,7 +186,7 @@
     const dy = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h), 0);
     return Math.hypot(dx,dy);
   }
-  function enemyRect(){ return rect(enemyX, enemyY, enemyW, enemyH); } // robust: no CSS parsing
+  function enemyRect(){ return rect(enemyX, enemyY, enemyW, enemyH); }
   function doorRect(){
     const left = W - DOOR_RIGHT - DOOR_W;
     const top  = H - DOOR_BOTTOM - DOOR_H;
@@ -240,6 +254,10 @@
           enemyWrap.classList.add('dead');
           enemyAlive = false;                   // no longer blocks movement
           toast('The skeleton is defeated!', {sticky:true, cls:'ok'});
+
+          // Spawn loot right as the corpse falls
+          spawnCoffeeDrop();
+
           cooling = false;
         }, 460);
       }
@@ -247,6 +265,45 @@
   }
   enemyWrap.addEventListener('click', hitEnemy);
   enemyImg.addEventListener('click', hitEnemy);
+
+  // ----- Coffee drop logic -----
+  function spawnCoffeeDrop(){
+    // Starting position: near the skeleton center
+    coffee.x = Math.round(enemyX + enemyW/2 - coffee.w/2);
+    coffee.y = Math.round(enemyY + enemyH*0.25);
+    coffee.vx = 2.6;           // to the right
+    coffee.vy = -6.2;          // upward pop
+    coffee.bounces = 0;
+    coffee.active = true;
+    coffee.sucked = false;
+
+    coffeeEl.style.width = coffee.w + 'px';
+    coffeeEl.style.height = 'auto';
+    coffeeEl.style.left = coffee.x + 'px';
+    coffeeEl.style.top  = coffee.y + 'px';
+    coffeeEl.style.transform = 'scale(1)';
+    coffeeEl.style.display = 'block';
+  }
+
+  function startSuction(){
+    if(coffee.sucked) return;
+    coffee.sucked = true;
+
+    // Target: player's center
+    const tx = player.x + player.w/2 - coffee.w/2;
+    const ty = player.y + player.h/2 - coffee.h/2;
+
+    // Use CSS transition to fly + shrink
+    coffeeEl.style.transition = 'left .35s ease-in, top .35s ease-in, transform .35s ease-in';
+    coffeeEl.style.left = tx + 'px';
+    coffeeEl.style.top  = ty + 'px';
+    coffeeEl.style.transform = 'scale(0.15)';
+
+    coffeeEl.addEventListener('transitionend', ()=>{
+      coffeeEl.style.display = 'none';
+      toast('A magic dark elixir has been added to your inventory', {sticky:true, cls:'ok'});
+    }, {once:true});
+  }
 
   // Main loop
   function tick(){
@@ -258,6 +315,31 @@
 
     if(dx || dy) movePlayer(dx, dy);
 
+    // Coffee physics (simple)
+    if(coffee.active && !coffee.sucked){
+      // gravity
+      coffee.vy += 0.35;
+      coffee.x += coffee.vx;
+      coffee.y += coffee.vy;
+
+      // floor collision/bounce
+      const floorY = GROUND_Y - coffee.h;
+      if(coffee.y >= floorY && coffee.vy > 0){
+        coffee.y = floorY;
+        coffee.vy = -Math.abs(coffee.vy) * 0.55; // bounce up
+        coffee.vx *= 0.8;                        // friction
+        coffee.bounces++;
+        // After first bounce, schedule suction shortly after a brief settle
+        if(coffee.bounces === 1){
+          setTimeout(startSuction, 300);
+        }
+      }
+
+      // place
+      coffeeEl.style.left = Math.round(coffee.x) + 'px';
+      coffeeEl.style.top  = Math.round(coffee.y) + 'px';
+    }
+
     // Exit if enemy dead and player overlaps door
     if(!enemyAlive && intersects(player, doorRect())){
       window.location.href = NEXT_URL;
@@ -266,6 +348,13 @@
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
+
+  // Utilities
+  function doorRect(){
+    const left = W - DOOR_RIGHT - DOOR_W;
+    const top  = H - DOOR_BOTTOM - DOOR_H;
+    return rect(left, top, DOOR_W, DOOR_H);
+  }
 })();
 </script>
 </body>
