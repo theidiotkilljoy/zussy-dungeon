@@ -41,7 +41,7 @@
   #player{position:absolute;width:56px;height:56px;image-rendering:pixelated}
   #npc{position:absolute;width:56px;height:56px;image-rendering:pixelated}
 
-  /* Top message banner (matches finale style) */
+  /* Top message banner (now above the scene) */
   #message{
     position:absolute; left:12px; right:12px; top:12px;
     padding:10px 14px;
@@ -50,6 +50,8 @@
     font-weight:800; letter-spacing:.2px; text-align:center;
     backdrop-filter: blur(2px);
     user-select:none; display:none;
+    z-index:40;              /* <-- ensures it sits above the scene */
+    pointer-events:auto;     /* toggled in JS when needed */
   }
   #message.clickable{ cursor:pointer }
   #sub{display:block;opacity:.9;font-weight:600;font-size:.9em;margin-top:4px}
@@ -57,17 +59,15 @@
   /* Coffee item */
   #coffee{
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(1);
-    image-rendering:pixelated; display:none; z-index:6;
+    image-rendering:pixelated; display:none; z-index:30;
   }
   @keyframes coffeeGrow { from{ transform:translate(-50%,-50%) scale(1) } to{ transform:translate(-50%,-50%) scale(16) } }
   .brew{ animation: coffeeGrow .7s ease forwards }
 
   /* Flash effect */
-  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:50}
   @keyframes flashBang { 0%{opacity:0} 10%{opacity:1} 100%{opacity:0} }
   .flash{ animation: flashBang .22s ease }
-
-  .hidden{display:none}
 </style>
 </head>
 <body>
@@ -172,7 +172,7 @@
     worldScale.style.transform = `scale(${scale})`;
   }
 
-  // Finale-style message helpers
+  // Message helpers
   function showMsg(text, {clickable=true, sub=''} = {}){
     msgBox.style.display = 'block';
     lineEl.textContent = text;
@@ -186,7 +186,7 @@
     msgBox.style.pointerEvents = clickable ? 'auto' : 'none';
   }
 
-  function sizeCoffee(){ // larger elixir (same as you set previously)
+  function sizeCoffee(){
     const size = Math.round(NPC_H * 1.0);
     coffeeEl.style.width = size + 'px';
     coffeeEl.style.height = 'auto';
@@ -203,14 +203,12 @@
     if(stage === 'preCoffee'){
       idx++;
       if(idx < preCoffeeLines.length){
-        // show next preCoffee line
         const isLast = (idx === preCoffeeLines.length - 1);
         showMsg(preCoffeeLines[idx], {
           clickable: !isLast,
           sub: isLast ? '(click the elixir)' : '(click)'
         });
         if(isLast){
-          // show coffee and wait for coffee click
           sizeCoffee();
           coffeeEl.style.display = 'block';
           stage = 'waitCoffee';
@@ -224,7 +222,7 @@
         showMsg(postCoffeeLines[idx], { clickable:true, sub:'(click)' });
       }else{
         stage = 'done';
-        window.open(NEXT_URL, '_blank');
+        window.open('finale.html', '_blank');
       }
     }
   });
