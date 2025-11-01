@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Final Boss</title>
 <style>
-  :root{ --text:#e8ecf1; --bg:#0a0b10; --floor:#0f1320; }
+  :root{
+    --text:#e8ecf1; --bg:#0a0b10; --floor:#0f1320;
+    --msgBg:rgba(0,0,0,.55); --msgBorder:#3a435c;
+  }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{
@@ -38,18 +41,20 @@
   #player{position:absolute;width:56px;height:56px;image-rendering:pixelated}
   #npc{position:absolute;width:56px;height:56px;image-rendering:pixelated}
 
-  /* Overlay dialogue */
-  #overlay{
-    position:absolute;left:0;right:0;bottom:0;padding:18px 20px 22px;
-    background:linear-gradient(180deg, transparent, rgba(0,0,0,.35) 40%, rgba(0,0,0,.65));
-    font-weight:900; letter-spacing:.2px; text-shadow:0 2px 8px rgba(0,0,0,.65), 0 0 24px rgba(0,0,0,.45);
-    font-size:clamp(22px,3.2vw,40px);
-    cursor:pointer; user-select:none;
-    display:none;
+  /* Top message banner (matches finale style) */
+  #message{
+    position:absolute; left:12px; right:12px; top:12px;
+    padding:10px 14px;
+    background:var(--msgBg);
+    border:1px solid var(--msgBorder); border-radius:10px;
+    font-weight:800; letter-spacing:.2px; text-align:center;
+    backdrop-filter: blur(2px);
+    user-select:none; display:none;
   }
-  #sub{display:block;opacity:.9;font-weight:600;font-size:.68em;margin-top:6px}
+  #message.clickable{ cursor:pointer }
+  #sub{display:block;opacity:.9;font-weight:600;font-size:.9em;margin-top:4px}
 
-  /* Coffee item (quarter of Maia’s size) */
+  /* Coffee item */
   #coffee{
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(1);
     image-rendering:pixelated; display:none; z-index:6;
@@ -61,6 +66,8 @@
   #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
   @keyframes flashBang { 0%{opacity:0} 10%{opacity:1} 100%{opacity:0} }
   .flash{ animation: flashBang .22s ease }
+
+  .hidden{display:none}
 </style>
 </head>
 <body>
@@ -69,6 +76,9 @@
   <div class="stage">
     <div id="scale" class="scaleBox">
       <div id="viewport" aria-label="Boss chamber">
+        <!-- Finale-style message banner -->
+        <div id="message"><span id="line"></span><span id="sub" class="hidden"></span></div>
+
         <div id="worldScale">
           <div id="world">
             <div class="ground" aria-hidden="true"></div>
@@ -84,10 +94,6 @@
         <!-- Cutscene UI -->
         <img id="coffee" src="assets/img/coffee.png" alt="Cup of coffee">
         <div id="flash"></div>
-        <div id="overlay">
-          <span id="line"></span>
-          <span id="sub">(click)</span>
-        </div>
       </div>
     </div>
   </div>
@@ -97,7 +103,7 @@
   // ----- Constants -----
   const W=960, H=540, GROUND=112;
   const PLAYER_W=56, PLAYER_H=56;
-  const NPC_W=56,    NPC_H=56;     // now same size as player
+  const NPC_W=56,    NPC_H=56;
   const START = { x:36, y: H-GROUND-PLAYER_H };
   const NPC_POS = { x:560, y: H-GROUND-NPC_H };
   const NEXT_URL = 'finale.html';
@@ -108,9 +114,11 @@
   const worldScale = document.getElementById('worldScale');
   const playerEl = document.getElementById('player');
   const npcEl    = document.getElementById('npc');
-  const overlay  = document.getElementById('overlay');
+
+  const msgBox   = document.getElementById('message');
   const lineEl   = document.getElementById('line');
   const subEl    = document.getElementById('sub');
+
   const coffeeEl = document.getElementById('coffee');
   const flashEl  = document.getElementById('flash');
 
@@ -125,7 +133,6 @@
   // ----- Entities -----
   const player = { x: START.x, y: START.y, w:PLAYER_W, h:PLAYER_H };
   const npc    = { x: NPC_POS.x, y: NPC_POS.y, w:NPC_W, h:NPC_H };
-
   function place(el, r){ el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; }
   place(playerEl, player);
   place(npcEl, npc);
@@ -136,11 +143,7 @@
   addEventListener('keyup',   e=>{ if(keys.hasOwnProperty(e.key)){ keys[e.key]=false; e.preventDefault(); }},{passive:false});
   let controlsEnabled = true;
   const speed = 2.8;
-
-  function clamp(e){
-    e.x = Math.max(0, Math.min(W-e.w, e.x));
-    e.y = Math.max(0, Math.min(H-e.h, e.y));
-  }
+  function clamp(e){ e.x = Math.max(0, Math.min(W-e.w, e.x)); e.y = Math.max(0, Math.min(H-e.h, e.y)); }
   function intersects(a,b){ return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
   // ----- Dialogue sequences -----
@@ -159,27 +162,35 @@
   let stage = 'explore'; // explore -> preCoffee -> waitCoffee -> postCoffee -> done
   let idx = 0;
 
-  // Properly center on NPC **with scale accounted for**
+  // Center on NPC with scale considered
   function centerOnNPCAndZoom(scale=2.2){
     const cx = npc.x + npc.w/2;
     const cy = npc.y + npc.h/2;
-    const dx = (W/2)/scale - cx;   // T = C/S - p  (since the wrapper scales after translate)
+    const dx = (W/2)/scale - cx;
     const dy = (H/2)/scale - cy;
     world.style.transform = `translate(${dx}px, ${dy}px)`;
     worldScale.style.transform = `scale(${scale})`;
   }
 
-  function showOverlay(text){
-    overlay.style.display = 'block';
+  // Finale-style message helpers
+  function showMsg(text, {clickable=true, sub=''} = {}){
+    msgBox.style.display = 'block';
     lineEl.textContent = text;
+    if(sub){
+      subEl.textContent = sub;
+      subEl.classList.remove('hidden');
+    }else{
+      subEl.classList.add('hidden');
+    }
+    msgBox.classList.toggle('clickable', !!clickable);
+    msgBox.style.pointerEvents = clickable ? 'auto' : 'none';
   }
 
-  function sizeCoffee(){ // 4× previous size (now = Maia’s height)
+  function sizeCoffee(){ // larger elixir (same as you set previously)
     const size = Math.round(NPC_H * 1.0);
     coffeeEl.style.width = size + 'px';
     coffeeEl.style.height = 'auto';
   }
-
 
   function transformMaia(){
     flashEl.classList.add('flash');
@@ -187,16 +198,22 @@
     setTimeout(()=> flashEl.classList.remove('flash'), 240);
   }
 
-  overlay.addEventListener('click', ()=>{
+  // Click-to-advance on message
+  msgBox.addEventListener('click', ()=>{
     if(stage === 'preCoffee'){
       idx++;
       if(idx < preCoffeeLines.length){
-        showOverlay(preCoffeeLines[idx]);
-        if(idx === preCoffeeLines.length-1){
+        // show next preCoffee line
+        const isLast = (idx === preCoffeeLines.length - 1);
+        showMsg(preCoffeeLines[idx], {
+          clickable: !isLast,
+          sub: isLast ? '(click the elixir)' : '(click)'
+        });
+        if(isLast){
+          // show coffee and wait for coffee click
           sizeCoffee();
           coffeeEl.style.display = 'block';
           stage = 'waitCoffee';
-          subEl.textContent = '(click the elixir)';
         }
       }
       return;
@@ -204,7 +221,7 @@
     if(stage === 'postCoffee'){
       idx++;
       if(idx < postCoffeeLines.length){
-        showOverlay(postCoffeeLines[idx]);
+        showMsg(postCoffeeLines[idx], { clickable:true, sub:'(click)' });
       }else{
         stage = 'done';
         window.open(NEXT_URL, '_blank');
@@ -212,6 +229,7 @@
     }
   });
 
+  // Coffee interaction
   coffeeEl.addEventListener('click', ()=>{
     if(stage !== 'waitCoffee') return;
     coffeeEl.classList.add('brew');
@@ -221,8 +239,7 @@
       transformMaia();
       stage = 'postCoffee';
       idx = 0;
-      subEl.textContent = '(click)';
-      showOverlay(postCoffeeLines[idx]);
+      showMsg(postCoffeeLines[idx], { clickable:true, sub:'(click)' });
     }, {once:true});
   });
 
@@ -248,7 +265,7 @@
         setTimeout(()=>{
           stage = 'preCoffee';
           idx = 0;
-          showOverlay(preCoffeeLines[idx]);
+          showMsg(preCoffeeLines[idx], { clickable:true, sub:'(click)' });
         }, 620);
       }
     }
