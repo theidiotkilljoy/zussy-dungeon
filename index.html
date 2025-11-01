@@ -5,47 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Welcome, Lord Zussy</title>
 <style>
-  :root{
-    --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --text:#e8ecf1;
-    --ink:#2a2418;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
+  :root{ --bg:#0a0b10; --panel:#11131a; --edge:#1c2130; --text:#e8ecf1; --ink:#2a2418; }
+  *{ box-sizing:border-box }
+  html,body{ height:100%; margin:0 }
   body{
     background:
       radial-gradient(1200px 800px at 50% 0%, #121622 0%, #0a0b10 70%),
       repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-    color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    color:var(--text); font:16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial;
   }
-  .wrap{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;gap:10px}
-  header{display:grid;place-items:center;padding-top:10px}
-  h1{margin:0;font-weight:900;letter-spacing:.2px;font-size:clamp(26px,4.6vw,40px)}
-  main{display:grid;place-items:start center}
+  .wrap{ min-height:100dvh; display:grid; grid-template-rows:auto 1fr auto; gap:10px }
+  header{ display:grid; place-items:center; padding-top:10px }
+  h1{ margin:0; font-weight:900; letter-spacing:.2px; font-size:clamp(26px,4.6vw,40px) }
+  main{ display:grid; place-items:start center }
   .panel{
     width:min(96vw,940px);
     background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
     border:1px solid var(--edge); border-radius:14px;
-    padding:16px 18px 22px;
+    padding:16px 18px 24px;
     box-shadow:inset 0 0 40px rgba(0,0,0,.35), 0 24px 80px rgba(0,0,0,.55);
     text-align:center;
   }
-  .scene{display:grid;place-items:center;gap:14px}
+  .scene{ display:grid; place-items:center; gap:16px }
 
-  /* Envelope container (relative for seal positioning) */
-  .envelope{
-    position:relative; width:min(88vw,760px); aspect-ratio:16/9;
-    filter: drop-shadow(0 18px 50px rgba(0,0,0,.45));
-  }
+  /* Envelope box is relative so the seal can be perfectly centered */
+  .envelope{ position:relative; width:min(88vw,760px); aspect-ratio:16/9; filter: drop-shadow(0 18px 50px rgba(0,0,0,.45)); }
 
-  /* Flap animation on open */
-  #flap{ transition: transform 0.9s cubic-bezier(.2,.7,.2,1); transform-origin:50% 0%; transform-box: fill-box; }
+  /* Animate the flap + the inner letter */
+  #flap{ transition: transform .9s cubic-bezier(.2,.7,.2,1); transform-origin:50% 0%; transform-box: fill-box; }
+  #letter{ transition: transform .9s cubic-bezier(.2,.7,.2,1); transform-box: fill-box; }
   .open #flap{ transform: rotateX(-165deg); }
+  .open #letter{ transform: translateY(-190px); } /* pulls the card upward from inside */
 
-  /* Wax seal (PNG) — perfectly centered on seam */
+  /* Centered PNG wax seal */
   .seal-btn{
     --s: clamp(70px, 10vw, 130px);
-    position:absolute; left:50%; top:52%;
-    transform:translate(-50%,-50%);
+    position:absolute; left:50%; top:54%;
+    transform: translate(-50%,-50%);
     width:var(--s); height:var(--s); padding:0; border:0; background:transparent;
     display:grid; place-items:center; cursor:pointer; user-select:none;
     filter: drop-shadow(0 10px 22px rgba(0,0,0,.55));
@@ -54,38 +50,18 @@
   .seal-btn:hover{ transform:translate(-50%,-51%) scale(1.02) }
   .seal-btn:active{ transform:translate(-50%,-49%) scale(.985) }
   .open .seal-btn{ opacity:0; pointer-events:none }
-
   .seal-img{ width:100%; height:100%; object-fit:contain; display:block }
 
-  /* Scroll reveal */
-  .scroll{
-    width:min(84vw,700px); margin-inline:auto;
-    max-height:0; overflow:hidden; transform:translateY(-6px); opacity:0;
-    transition:max-height 1.1s cubic-bezier(.2,.7,.2,1), transform .5s ease, opacity .5s ease;
+  /* Letter content (inside the SVG via <foreignObject>) */
+  .letter{
+    width:100%; height:100%; display:grid; place-items:center; padding:14px;
+    color:var(--ink); font: 16px/1.55 "Georgia", serif;
   }
-  .open + .scroll{ max-height:1200px; transform:translateY(-2px); opacity:1; }
-
-  .scroll-in{
-    position:relative; color:var(--ink); padding:28px 28px 34px;
-    background:linear-gradient(180deg,#f2e7c8,#e5d6b0 55%,#d3c195);
-    border:1px solid #a58b5a; border-radius:10px;
-    box-shadow:inset 0 2px 0 rgba(255,255,255,.35), inset 0 -14px 35px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
-  }
-  .scroll-in::before,.scroll-in::after{
-    content:""; position:absolute; left:0; right:0; height:16px;
-    background:linear-gradient(90deg,#7d5a2f,#b4874b 45%,#d09b5a,#b4874b 55%,#7d5a2f);
-    box-shadow:inset 0 0 6px rgba(0,0,0,.45), 0 6px 12px rgba(0,0,0,.25);
-  }
-  .scroll-in::before{top:-16px; border-radius:10px 10px 0 0}
-  .scroll-in::after{bottom:-16px; border-radius:0 0 10px 10px}
-
-  .quest h2{font:800 clamp(20px,3.6vw,28px)/1.2 "Georgia",serif; margin:0 0 10px}
-  .quest p{margin:.45em auto; max-width:62ch; font:500 16px/1.55 "Georgia",serif}
-  .cta{margin-top:14px}
+  .letter h2{ margin:.2em 0 .4em; font:800 clamp(20px,3.6vw,28px)/1.2 "Georgia", serif; text-align:center }
+  .letter p{ margin:.35em auto; max-width:62ch; }
   .btn{
-    display:inline-block; background:#0f1320; border:1px solid #2a334a; color:var(--text);
-    padding:12px 18px; border-radius:12px; text-decoration:none; font-weight:800;
-    text-transform:uppercase; letter-spacing:.08em;
+    display:inline-block; margin-top:12px; background:#0f1320; border:1px solid #2a334a; color:#e8ecf1;
+    padding:12px 18px; border-radius:12px; text-decoration:none; font-weight:800; text-transform:uppercase; letter-spacing:.08em;
     box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 20px rgba(124,255,184,.12);
   }
 </style>
@@ -96,68 +72,74 @@
 
     <main>
       <div class="panel">
-        <div class="scene">
+        <div id="envBox" class="envelope" aria-live="polite">
+          <!-- ONE self-contained SVG: base, pocket, letter (masked), and flap -->
+          <svg viewBox="0 0 900 520" width="100%" height="100%" aria-label="A parchment envelope with a letter inside">
+            <defs>
+              <!-- Colors -->
+              <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#f7edd2"/><stop offset="60%" stop-color="#eadcb8"/><stop offset="100%" stop-color="#d7c69c"/>
+              </linearGradient>
+              <linearGradient id="pocketGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#e6d6b2"/><stop offset="100%" stop-color="#d1bf93"/>
+              </linearGradient>
+              <linearGradient id="flapGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#f6ecd1"/><stop offset="58%" stop-color="#ecdfbe"/><stop offset="100%" stop-color="#d9c79e"/>
+              </linearGradient>
 
-          <!-- ENVELOPE (single SVG, no overlapping CSS layers) -->
-          <div id="envBox" class="envelope">
-            <svg id="envSVG" viewBox="0 0 900 520" width="100%" height="100%" aria-label="A parchment envelope">
-              <defs>
-                <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"  stop-color="#f7edd2"/>
-                  <stop offset="60%" stop-color="#eadcb8"/>
-                  <stop offset="100%" stop-color="#d7c69c"/>
-                </linearGradient>
-                <linearGradient id="flapGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"  stop-color="#f6ecd1"/>
-                  <stop offset="58%" stop-color="#ecdfbe"/>
-                  <stop offset="100%" stop-color="#d9c79e"/>
-                </linearGradient>
-                <linearGradient id="lowerGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e6d6b2"/>
-                  <stop offset="100%" stop-color="#d1bf93"/>
-                </linearGradient>
-                <filter id="softBlur" x="-20%" y="-200%" width="140%" height="400%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="6"/>
-                </filter>
-              </defs>
+              <!-- Soft drop shadows -->
+              <filter id="blurSmall" x="-20%" y="-200%" width="140%" height="400%"><feGaussianBlur stdDeviation="5"/></filter>
+              <filter id="blurCard"  x="-20%" y="-20%"  width="140%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
 
-              <!-- base rounded rectangle -->
-              <rect x="10" y="10" rx="22" ry="22" width="880" height="500" fill="url(#baseGrad)" stroke="#b49c6e" />
+              <!-- Clip so the letter only shows ABOVE the seam (y=280) -->
+              <clipPath id="slotClip">
+                <rect x="0" y="0" width="900" height="280" />
+              </clipPath>
+            </defs>
 
-              <!-- bottom triangle flap -->
-              <path d="M 80 510 L 450 280 L 820 510 Z" fill="url(#lowerGrad)" />
+            <!-- Base rounded rect -->
+            <rect x="10" y="10" rx="22" ry="22" width="880" height="500" fill="url(#baseGrad)" stroke="#b49c6e" />
 
-              <!-- seam shadow (single soft bar) -->
-              <ellipse cx="450" cy="285" rx="330" ry="14" fill="rgba(0,0,0,0.18)" filter="url(#softBlur)"/>
+            <!-- Bottom pocket shape (for look only, stays still) -->
+            <path d="M 80 510 L 450 280 L 820 510 Z" fill="url(#pocketGrad)" />
 
-              <!-- TOP FLAP (this rotates) -->
-              <g id="flap" style="transform-box:fill-box; transform-origin:50% 0%;">
-                <path d="M 60 20 L 840 20 L 450 280 Z" fill="url(#flapGrad)" />
-                <!-- tiny inner shading on flap -->
-                <ellipse cx="450" cy="140" rx="360" ry="26" fill="rgba(0,0,0,0.08)" filter="url(#softBlur)"/>
+            <!-- (Single) seam shadow for depth -->
+            <ellipse cx="450" cy="280" rx="340" ry="12" fill="rgba(0,0,0,0.16)" filter="url(#blurSmall)"/>
+
+            <!-- Letter card that slides UP; clipped to only show above the seam -->
+            <g id="letter" clip-path="url(#slotClip)" transform="translate(0,0)">
+              <!-- Card body with its own shadow -->
+              <g filter="url(#blurCard)" opacity="0.35">
+                <rect x="170" y="310" width="560" height="320" rx="14" ry="14" fill="#000" />
               </g>
-            </svg>
+              <rect x="170" y="310" width="560" height="320" rx="14" ry="14"
+                    fill="url(#baseGrad)" stroke="#a58b5a" />
 
-            <!-- Wax seal (PNG) -->
-            <button id="sealBtn" class="seal-btn" aria-label="Break the wax seal">
-              <img class="seal-img" src="assets/img/seal.png" width="240" height="240" alt="">
-            </button>
-          </div>
+              <!-- Rich HTML content placed on the card -->
+              <foreignObject x="170" y="310" width="560" height="320">
+                <div xmlns="http://www.w3.org/1999/xhtml" class="letter">
+                  <div>
+                    <h2>Quest for the 32<sup>nd</sup> Year</h2>
+                    <p>Sir Zachary, by royal decree you are summoned to a birthday dungeon crawl of cake,
+                      cozy vibes, and perilous cuddles.</p>
+                    <p>Gather your party (you + Mimi), stock rations, and prepare your finest quips.
+                      Your destiny awaits beyond these seals…</p>
+                    <a class="btn" href="dungeon.html">enter the dungeon</a>
+                  </div>
+                </div>
+              </foreignObject>
+            </g>
 
-          <!-- SCROLL -->
-          <div class="scroll" id="scroll">
-            <div class="scroll-in">
-              <section class="quest" aria-live="polite">
-                <h2>Quest for the 32<sup>nd</sup> Year</h2>
-                <p>Sir Zachary, by royal decree you are summoned to a birthday dungeon crawl of cake,
-                   cozy vibes, and perilous cuddles.</p>
-                <p>Gather your party (you + Mimi), stock rations, and prepare your finest quips.
-                   Your destiny awaits beyond these seals…</p>
-                <div class="cta"><a class="btn" href="dungeon.html">enter the dungeon</a></div>
-              </section>
-            </div>
-          </div>
+            <!-- Top flap (rotates open) -->
+            <g id="flap">
+              <path d="M 60 20 L 840 20 L 450 280 Z" fill="url(#flapGrad)" />
+            </g>
+          </svg>
 
+          <!-- PNG wax seal centered on the seam -->
+          <button id="sealBtn" class="seal-btn" aria-label="Break the wax seal">
+            <img class="seal-img" src="assets/img/seal.png" width="240" height="240" alt="">
+          </button>
         </div>
       </div>
     </main>
@@ -169,13 +151,12 @@
   (function(){
     const envBox  = document.getElementById('envBox');
     const sealBtn = document.getElementById('sealBtn');
-    const scroll  = document.getElementById('scroll');
 
     function openLetter(){
       if(envBox.classList.contains('open')) return;
       envBox.classList.add('open');
-      // Make sure the scroll is visible on smaller screens
-      setTimeout(()=> scroll.scrollIntoView({behavior:'smooth', block:'start'}), 350);
+      // Ensure focus navigation continues nicely
+      sealBtn.setAttribute('tabindex','-1');
     }
     sealBtn.addEventListener('click', openLetter);
     sealBtn.addEventListener('keydown', e=>{
